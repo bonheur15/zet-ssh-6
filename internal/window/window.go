@@ -256,28 +256,58 @@ func (tw *TerminalWindow) updateHistoryUI() {
 		return
 	}
 
-	// Populate buttons
+	// Populate flat command rows: [ Text Button (Copy on click) | Arrow Button (Execute on click) ]
 	for _, cmd := range tw.Cfg.CommandHistory {
 		cmdStr := cmd
-		btn := gtk.NewButton()
-		btn.AddCSSClass("sidebar-btn")
-		btn.SetHAlign(gtk.AlignFill)
+
+		// Row Box
+		row := gtk.NewBox(gtk.OrientationHorizontal, 0)
+		row.AddCSSClass("sidebar-row")
+		row.SetHExpand(true)
+
+		// Text Button showing command (Copies command on click)
+		btnText := gtk.NewButton()
+		btnText.AddCSSClass("sidebar-btn")
+		btnText.SetHExpand(true)
+		btnText.SetHAlign(gtk.AlignFill)
+		btnText.SetTooltipText("Click to copy to clipboard")
 
 		lbl := gtk.NewLabel(cmdStr)
 		lbl.AddCSSClass("sidebar-btn-label")
 		lbl.SetHAlign(gtk.AlignStart)
 		lbl.SetXAlign(0.0)
-		btn.SetChild(lbl)
+		btnText.SetChild(lbl)
 
-		btn.ConnectClicked(func() {
+		btnText.ConnectClicked(func() {
+			display := gdk.DisplayGetDefault()
+			if display != nil {
+				clipboard := display.Clipboard()
+				if clipboard != nil {
+					clipboard.SetText(cmdStr)
+				}
+			}
+		})
+		row.Append(btnText)
+
+		// Arrow Button to execute command
+		btnArrow := gtk.NewButton()
+		btnArrow.AddCSSClass("sidebar-arrow-btn")
+		btnArrow.SetTooltipText("Execute command")
+
+		lblArrow := gtk.NewLabel("→")
+		lblArrow.AddCSSClass("sidebar-arrow-label")
+		btnArrow.SetChild(lblArrow)
+
+		btnArrow.ConnectClicked(func() {
 			if tw.TermInst != nil {
 				tw.TermInst.FeedChild(cmdStr + "\n")
 				tw.Revealer.SetRevealChild(false)
 				tw.TermInst.Widget.GrabFocus()
 			}
 		})
+		row.Append(btnArrow)
 
-		tw.HistoryListBox.Append(btn)
+		tw.HistoryListBox.Append(row)
 	}
 }
 
@@ -285,6 +315,12 @@ func (tw *TerminalWindow) AddCommandToHistory(cmd string) {
 	cmd = strings.TrimSpace(cmd)
 	// We ignore commands that are too short (< 2 chars) or too long (> 60 chars)
 	if len(cmd) < 2 || len(cmd) > 60 {
+		return
+	}
+
+	// We ignore denylisted commands: ls, clear, top
+	cmdLower := strings.ToLower(cmd)
+	if cmdLower == "ls" || cmdLower == "clear" || cmdLower == "top" {
 		return
 	}
 

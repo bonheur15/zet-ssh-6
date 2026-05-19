@@ -98,16 +98,14 @@ headerbar label {
 
 .sidebar-btn {
 	background: transparent;
-	border: 1px solid #242424;
+	border: none;
 	border-radius: 4px;
 	padding: 6px 8px;
-	margin-bottom: 6px;
-	transition: all 0.2s ease;
+	transition: background 0.2s ease;
 }
 
 .sidebar-btn:hover {
 	background: #202020;
-	border-color: #444444;
 }
 
 .sidebar-btn-label {
@@ -116,13 +114,45 @@ headerbar label {
 	color: #d0d0d0;
 }
 
+.sidebar-btn:hover .sidebar-btn-label {
+	color: #ffffff;
+}
+
 .sidebar-trigger {
-	background: rgba(18, 18, 18, 0.2);
-	border-right: 1px dashed rgba(255, 255, 255, 0.05);
+	background: transparent;
+	border-right: 1px solid #202020;
 	transition: background 0.2s ease;
 }
 
 .sidebar-trigger:hover {
-	background: rgba(255, 255, 255, 0.03);
+	background: rgba(255, 255, 255, 0.02);
+}
+
+.sidebar-row {
+	margin-bottom: 4px;
+	border: none;
+	background: transparent;
+}
+
+.sidebar-arrow-btn {
+	background: transparent;
+	border: none;
+	border-radius: 4px;
+	padding: 6px;
+	margin-left: 2px;
+	transition: background 0.2s ease;
+}
+
+.sidebar-arrow-btn:hover {
+	background: #252525;
+}
+
+.sidebar-arrow-label {
+	font-size: 11px;
+	color: #888888;
+}
+
+.sidebar-arrow-btn:hover .sidebar-arrow-label {
+	color: #38bdf8;
 }
 `
