@@ -17,8 +17,8 @@ type Config struct {
 
 func DefaultConfig() *Config {
 	return &Config{
-		FontName:        "monospace",
-		FontSize:        12,
+		FontName:        "", // Empty by default to let VTE use standard system terminal font
+		FontSize:        11,
 		Shell:           "/bin/bash",
 		CursorBlinkMode: 1, // On
 		CursorShape:     0, // Block

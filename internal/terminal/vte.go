@@ -140,6 +140,9 @@ func (t *VteTerminalInstance) SpawnShell(shellPath, workingDir string) {
 }
 
 func (t *VteTerminalInstance) SetFont(fontName string, fontSize int) {
+	if fontName == "" {
+		return
+	}
 	termPtr := (*C.VteTerminal)(unsafe.Pointer(t.Widget.Object.Native()))
 	cFont := C.CString(fontName)
 	defer C.free(unsafe.Pointer(cFont))

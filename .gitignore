@@ -13,3 +13,5 @@ hello-gtk4
 
 # System files
 .DS_Store
+
+!cmd/zet-terminal
