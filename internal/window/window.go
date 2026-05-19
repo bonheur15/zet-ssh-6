@@ -31,11 +31,14 @@ func NewTerminalWindow(app *gtk.Application, cfg *config.Config) *TerminalWindow
 	tw.setupUI()
 	tw.setupShortcuts()
 
-	// Show window
-	win.Show()
+	// Show and present window to grab focus at OS/WM level
+	win.Present()
 
 	// Apply fonts & theme colors AFTER realization/show to ensure correct DPI and cell metrics
 	tw.applyConfigToInstance(tw.TermInst)
+
+	// Grab input focus directly on the terminal widget so the user can type immediately
+	tw.TermInst.Widget.GrabFocus()
 
 	return tw
 }
