@@ -17,7 +17,7 @@ type Config struct {
 
 func DefaultConfig() *Config {
 	return &Config{
-		FontName:        "Hack",
+		FontName:        "monospace",
 		FontSize:        11,
 		Shell:           "/bin/bash",
 		CursorBlinkMode: 1, // On
@@ -51,8 +51,8 @@ func LoadConfig() *Config {
 	if err := json.NewDecoder(file).Decode(cfg); err != nil {
 		return DefaultConfig()
 	}
-	if cfg.FontName == "" || cfg.FontName == "monospace" {
-		cfg.FontName = "Hack"
+	if cfg.FontName == "" {
+		cfg.FontName = "monospace"
 		_ = SaveConfig(cfg)
 	}
 	return cfg

@@ -34,7 +34,6 @@ headerbar {
 headerbar label {
 	font-family: inherit;
 	font-size: 13px;
-	font-weight: 600;
 	color: #e0e0e0;
 }
 
@@ -44,9 +43,5 @@ headerbar label {
 	border: none;
 	padding: 4px;
 	margin: 0;
-}
-
-.vte-terminal-widget {
-	font-family: "Hack", "Liberation Mono", "DejaVu Sans Mono", monospace;
 }
 `

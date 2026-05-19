@@ -4,6 +4,7 @@ package terminal
 #cgo pkg-config: gtk4 vte-2.91-gtk4
 #include <vte/vte.h>
 #include <stdlib.h>
+#include <string.h>
 
 extern void goOnChildExited(void *termPtr, int status);
 extern void goOnWindowTitleChanged(void *termPtr, char *title);
@@ -56,9 +57,53 @@ static void set_terminal_colors(VteTerminal *terminal, const char *fg_hex, const
 static void set_terminal_font(VteTerminal *terminal, const char *font_name, int font_size) {
 	char font_desc_str[256];
 	snprintf(font_desc_str, sizeof(font_desc_str), "%s %d", font_name, font_size);
-	PangoFontDescription *desc = pango_font_description_from_string(font_desc_str);
-	vte_terminal_set_font(terminal, desc);
-	pango_font_description_free(desc);
+	PangoFontDescription *requested = pango_font_description_from_string(font_desc_str);
+	PangoContext *context = gtk_widget_get_pango_context(GTK_WIDGET(terminal));
+
+	PangoFontDescription *resolved = requested;
+	char *resolved_family = NULL;
+	PangoFont *loaded = pango_context_load_font(context, requested);
+	if (loaded != NULL) {
+		PangoFontDescription *loaded_desc = pango_font_describe(loaded);
+		if (loaded_desc != NULL) {
+			const char *family = pango_font_description_get_family(loaded_desc);
+			if (family != NULL) {
+				resolved_family = g_strdup(family);
+			}
+			pango_font_description_free(loaded_desc);
+		}
+		g_object_unref(loaded);
+	}
+
+	gboolean family_is_monospace = FALSE;
+	if (resolved_family != NULL) {
+		PangoFontFamily **families = NULL;
+		int n_families = 0;
+		pango_context_list_families(context, &families, &n_families);
+		for (int i = 0; i < n_families; i++) {
+			const char *family_name = pango_font_family_get_name(families[i]);
+			if (family_name != NULL && strcmp(family_name, resolved_family) == 0) {
+				family_is_monospace = pango_font_family_is_monospace(families[i]);
+				break;
+			}
+		}
+		g_free(families);
+	}
+
+	if (!family_is_monospace) {
+		resolved = pango_font_description_from_string("monospace 11");
+		pango_font_description_set_size(resolved, font_size * PANGO_SCALE);
+	}
+
+	vte_terminal_set_font(terminal, resolved);
+	vte_terminal_set_cell_width_scale(terminal, 1.0);
+	vte_terminal_set_cell_height_scale(terminal, 1.0);
+
+	if (resolved != requested) {
+		pango_font_description_free(resolved);
+	}
+	g_free(resolved_family);
+	pango_font_description_free(requested);
 }
 
 static void terminal_copy(VteTerminal *terminal) {
