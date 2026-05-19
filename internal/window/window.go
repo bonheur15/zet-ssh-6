@@ -39,6 +39,7 @@ type TerminalWindow struct {
 	HistoryRevealer  *gtk.Revealer
 	HistoryHeaderBtn *gtk.Button
 	HistoryArrowLbl  *gtk.Label
+	PopoverActive    bool
 }
 
 func NewTerminalWindow(app *gtk.Application, cfg *config.Config) *TerminalWindow {
@@ -374,7 +375,9 @@ func (tw *TerminalWindow) setupSideDock() {
 		tw.Revealer.SetRevealChild(true)
 	})
 	dockMotionCtrl.ConnectLeave(func() {
-		tw.Revealer.SetRevealChild(false)
+		if !tw.PopoverActive {
+			tw.Revealer.SetRevealChild(false)
+		}
 	})
 	tw.DockBox.AddController(dockMotionCtrl)
 }
@@ -556,9 +559,16 @@ func (tw *TerminalWindow) renderWorkspace() {
 }
 
 func (tw *TerminalWindow) promptCreateGroup() {
+	tw.PopoverActive = true
+
 	popover := gtk.NewPopover()
 	popover.SetParent(tw.WorkspaceBox)
 	popover.SetHasArrow(true)
+
+	popover.ConnectClosed(func() {
+		tw.PopoverActive = false
+		tw.Revealer.SetRevealChild(false)
+	})
 
 	box := gtk.NewBox(gtk.OrientationVertical, 4)
 	box.SetMarginBottom(4)
@@ -625,9 +635,16 @@ func (tw *TerminalWindow) createTabInGroup(groupID string) {
 }
 
 func (tw *TerminalWindow) promptRenameGroup(groupIndex int) {
+	tw.PopoverActive = true
+
 	popover := gtk.NewPopover()
 	popover.SetParent(tw.WorkspaceBox)
 	popover.SetHasArrow(true)
+
+	popover.ConnectClosed(func() {
+		tw.PopoverActive = false
+		tw.Revealer.SetRevealChild(false)
+	})
 
 	box := gtk.NewBox(gtk.OrientationVertical, 4)
 	box.SetMarginBottom(4)
