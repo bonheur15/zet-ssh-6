@@ -17,7 +17,7 @@ type Config struct {
 
 func DefaultConfig() *Config {
 	return &Config{
-		FontName:        "", // Empty by default to let VTE use standard system terminal font
+		FontName:        "Hack",
 		FontSize:        11,
 		Shell:           "/bin/bash",
 		CursorBlinkMode: 1, // On
@@ -50,6 +50,10 @@ func LoadConfig() *Config {
 	cfg := DefaultConfig()
 	if err := json.NewDecoder(file).Decode(cfg); err != nil {
 		return DefaultConfig()
+	}
+	if cfg.FontName == "" || cfg.FontName == "monospace" {
+		cfg.FontName = "Hack"
+		_ = SaveConfig(cfg)
 	}
 	return cfg
 }
