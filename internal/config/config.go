@@ -7,12 +7,13 @@ import (
 )
 
 type Config struct {
-	FontName         string `json:"font_name"`
-	FontSize         int    `json:"font_size"`
-	Shell            string `json:"shell"`
-	CursorBlinkMode  int    `json:"cursor_blink_mode"` // 0 = system, 1 = blink on, 2 = blink off
-	CursorShape      int    `json:"cursor_shape"`      // 0 = block, 1 = i-beam, 2 = underline
-	ScrollbackLines  int    `json:"scrollback_lines"`
+	FontName         string   `json:"font_name"`
+	FontSize         int      `json:"font_size"`
+	Shell            string   `json:"shell"`
+	CursorBlinkMode  int      `json:"cursor_blink_mode"` // 0 = system, 1 = blink on, 2 = blink off
+	CursorShape      int      `json:"cursor_shape"`      // 0 = block, 1 = i-beam, 2 = underline
+	ScrollbackLines  int      `json:"scrollback_lines"`
+	CommandHistory   []string `json:"command_history"`
 }
 
 func DefaultConfig() *Config {
@@ -23,6 +24,7 @@ func DefaultConfig() *Config {
 		CursorBlinkMode: 1, // On
 		CursorShape:     0, // Block
 		ScrollbackLines: 10000,
+		CommandHistory:  []string{},
 	}
 }
 

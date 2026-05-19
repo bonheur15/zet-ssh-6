@@ -73,4 +73,56 @@ headerbar label {
 	padding: 4px;
 	margin: 0;
 }
+
+/* ─── Side Dock & Panel ─── */
+.sidebar-dock {
+	background: transparent;
+}
+
+.sidebar-panel {
+	background: #151515;
+	border-right: 1px solid #242424;
+	padding: 12px 8px;
+	box-shadow: 4px 0 12px rgba(0, 0, 0, 0.4);
+}
+
+.sidebar-title {
+	font-family: inherit;
+	font-size: 11px;
+	font-weight: 700;
+	color: #888888;
+	margin-bottom: 12px;
+	letter-spacing: 1px;
+	text-transform: uppercase;
+}
+
+.sidebar-btn {
+	background: transparent;
+	border: 1px solid #242424;
+	border-radius: 4px;
+	padding: 6px 8px;
+	margin-bottom: 6px;
+	transition: all 0.2s ease;
+}
+
+.sidebar-btn:hover {
+	background: #202020;
+	border-color: #444444;
+}
+
+.sidebar-btn-label {
+	font-family: "Hack", monospace;
+	font-size: 10px;
+	color: #d0d0d0;
+}
+
+.sidebar-trigger {
+	background: rgba(18, 18, 18, 0.2);
+	border-right: 1px dashed rgba(255, 255, 255, 0.05);
+	transition: background 0.2s ease;
+}
+
+.sidebar-trigger:hover {
+	background: rgba(255, 255, 255, 0.03);
+}
 `

@@ -1,6 +1,8 @@
 package window
 
 import (
+	"strings"
+
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"zet-terminal/internal/config"
@@ -9,11 +11,16 @@ import (
 )
 
 type TerminalWindow struct {
-	Win       *gtk.ApplicationWindow
-	App       *gtk.Application
-	Cfg       *config.Config
-	TermInst  *terminal.VteTerminalInstance
-	Container *gtk.Box
+	Win              *gtk.ApplicationWindow
+	App              *gtk.Application
+	Cfg              *config.Config
+	TermInst         *terminal.VteTerminalInstance
+	Container        *gtk.Box
+	Overlay          *gtk.Overlay
+	DockBox          *gtk.Box
+	Revealer         *gtk.Revealer
+	HistoryListBox   *gtk.Box
+	currentCmdBuffer string
 }
 
 func NewTerminalWindow(app *gtk.Application, cfg *config.Config) *TerminalWindow {
@@ -68,7 +75,13 @@ func (tw *TerminalWindow) setupUI() {
 	tw.Container.SetVExpand(true)
 	tw.Container.Append(tw.TermInst.Widget)
 
-	tw.Win.SetChild(tw.Container)
+	// Wrap in Overlay for side dock
+	tw.Overlay = gtk.NewOverlay()
+	tw.Overlay.SetChild(tw.Container)
+	tw.Win.SetChild(tw.Overlay)
+
+	// Set up the left hover dock
+	tw.setupSideDock()
 
 	// Spawn default shell inside PTY
 	tw.TermInst.SpawnShell(tw.Cfg.Shell, "")
@@ -98,6 +111,7 @@ func (tw *TerminalWindow) setupShortcuts() {
 	keyCtrl.ConnectKeyPressed(func(keyval uint, keycode uint, state gdk.ModifierType) bool {
 		isCtrl := (state & gdk.ControlMask) != 0
 		isShift := (state & gdk.ShiftMask) != 0
+		isAlt := (state & gdk.AltMask) != 0
 
 		if isCtrl && isShift {
 			switch keyval {
@@ -132,7 +146,161 @@ func (tw *TerminalWindow) setupShortcuts() {
 				return true
 			}
 		}
+
+		// Track command history typing silently in the background
+		if !isCtrl && !isAlt {
+			switch keyval {
+			case 0xff0d, 0xff8d: // Enter key (Return or Keypad Enter)
+				tw.AddCommandToHistory(tw.currentCmdBuffer)
+				tw.currentCmdBuffer = ""
+			case 0xff08: // Backspace key
+				if len(tw.currentCmdBuffer) > 0 {
+					runes := []rune(tw.currentCmdBuffer)
+					tw.currentCmdBuffer = string(runes[:len(runes)-1])
+				}
+			default:
+				// Track only standard printable ASCII characters
+				if keyval >= 32 && keyval <= 126 {
+					tw.currentCmdBuffer += string(rune(keyval))
+				}
+			}
+		} else if isCtrl && (keyval == 'C' || keyval == 'c' || keyval == 'D' || keyval == 'd') {
+			// Ctrl+C or Ctrl+D cancels current line input
+			tw.currentCmdBuffer = ""
+		}
+
 		return false
 	})
 	tw.Win.AddController(keyCtrl)
+}
+
+func (tw *TerminalWindow) setupSideDock() {
+	// ─── Revealer (slides horizontal) ───
+	tw.Revealer = gtk.NewRevealer()
+	tw.Revealer.SetTransitionType(gtk.RevealerTransitionTypeSlideRight)
+	tw.Revealer.SetTransitionDuration(250)
+	tw.Revealer.SetRevealChild(false)
+
+	// Panel Container Box
+	panelBox := gtk.NewBox(gtk.OrientationVertical, 0)
+	panelBox.AddCSSClass("sidebar-panel")
+	panelBox.SetSizeRequest(220, -1)
+	panelBox.SetVExpand(true)
+
+	// Panel Title
+	titleLabel := gtk.NewLabel("COMMANDS")
+	titleLabel.AddCSSClass("sidebar-title")
+	titleLabel.SetHAlign(gtk.AlignStart)
+	panelBox.Append(titleLabel)
+
+	// Scrolled window for history list
+	scrolled := gtk.NewScrolledWindow()
+	scrolled.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
+	scrolled.SetVExpand(true)
+	scrolled.SetHExpand(true)
+	panelBox.Append(scrolled)
+
+	// List container inside scrolled
+	tw.HistoryListBox = gtk.NewBox(gtk.OrientationVertical, 0)
+	tw.HistoryListBox.SetVExpand(true)
+	tw.HistoryListBox.SetHExpand(true)
+	scrolled.SetChild(tw.HistoryListBox)
+
+	tw.Revealer.SetChild(panelBox)
+
+	// Thin vertical hover trigger bar
+	triggerBar := gtk.NewBox(gtk.OrientationVertical, 0)
+	triggerBar.AddCSSClass("sidebar-trigger")
+	triggerBar.SetSizeRequest(6, -1)
+	triggerBar.SetVExpand(true)
+
+	// Main Dock Box holding [ Revealer | TriggerBar ]
+	tw.DockBox = gtk.NewBox(gtk.OrientationHorizontal, 0)
+	tw.DockBox.AddCSSClass("sidebar-dock")
+	tw.DockBox.SetHAlign(gtk.AlignStart)
+	tw.DockBox.SetVAlign(gtk.AlignFill)
+	tw.DockBox.Append(tw.Revealer)
+	tw.DockBox.Append(triggerBar)
+
+	// Add DockBox as an overlay child
+	tw.Overlay.AddOverlay(tw.DockBox)
+
+	// Add Hover Event Controller
+	motionCtrl := gtk.NewEventControllerMotion()
+	motionCtrl.ConnectEnter(func(x float64, y float64) {
+		tw.updateHistoryUI()
+		tw.Revealer.SetRevealChild(true)
+	})
+	motionCtrl.ConnectLeave(func() {
+		tw.Revealer.SetRevealChild(false)
+	})
+	tw.DockBox.AddController(motionCtrl)
+
+	// Populate initially
+	tw.updateHistoryUI()
+}
+
+func (tw *TerminalWindow) updateHistoryUI() {
+	// Clear existing list items
+	for child := tw.HistoryListBox.FirstChild(); child != nil; child = tw.HistoryListBox.FirstChild() {
+		tw.HistoryListBox.Remove(child)
+	}
+
+	// If history is empty, show a placeholder label
+	if len(tw.Cfg.CommandHistory) == 0 {
+		emptyLabel := gtk.NewLabel("No commands run yet.")
+		emptyLabel.AddCSSClass("sidebar-btn-label")
+		emptyLabel.SetMarginTop(20)
+		emptyLabel.SetHAlign(gtk.AlignCenter)
+		tw.HistoryListBox.Append(emptyLabel)
+		return
+	}
+
+	// Populate buttons
+	for _, cmd := range tw.Cfg.CommandHistory {
+		cmdStr := cmd
+		btn := gtk.NewButton()
+		btn.AddCSSClass("sidebar-btn")
+		btn.SetHAlign(gtk.AlignFill)
+
+		lbl := gtk.NewLabel(cmdStr)
+		lbl.AddCSSClass("sidebar-btn-label")
+		lbl.SetHAlign(gtk.AlignStart)
+		lbl.SetXAlign(0.0)
+		btn.SetChild(lbl)
+
+		btn.ConnectClicked(func() {
+			if tw.TermInst != nil {
+				tw.TermInst.FeedChild(cmdStr + "\n")
+				tw.Revealer.SetRevealChild(false)
+				tw.TermInst.Widget.GrabFocus()
+			}
+		})
+
+		tw.HistoryListBox.Append(btn)
+	}
+}
+
+func (tw *TerminalWindow) AddCommandToHistory(cmd string) {
+	cmd = strings.TrimSpace(cmd)
+	// We ignore commands that are too short (< 2 chars) or too long (> 60 chars)
+	if len(cmd) < 2 || len(cmd) > 60 {
+		return
+	}
+
+	// Don't add if it is the same as the most recent command
+	if len(tw.Cfg.CommandHistory) > 0 && tw.Cfg.CommandHistory[0] == cmd {
+		return
+	}
+
+	// Prepend to command history
+	tw.Cfg.CommandHistory = append([]string{cmd}, tw.Cfg.CommandHistory...)
+
+	// Truncate to maximum 10 items
+	if len(tw.Cfg.CommandHistory) > 10 {
+		tw.Cfg.CommandHistory = tw.Cfg.CommandHistory[:10]
+	}
+
+	// Save to config file
+	_ = config.SaveConfig(tw.Cfg)
 }

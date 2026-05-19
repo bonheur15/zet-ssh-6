@@ -248,6 +248,13 @@ func (t *VteTerminalInstance) OnWindowTitleChanged(fn func(title string)) {
 	t.onWindowTitleChanged = fn
 }
 
+func (t *VteTerminalInstance) FeedChild(text string) {
+	termPtr := (*C.VteTerminal)(unsafe.Pointer(t.Widget.Object.Native()))
+	cText := C.CString(text)
+	defer C.free(unsafe.Pointer(cText))
+	C.vte_terminal_feed_child(termPtr, cText, C.gssize(len(text)))
+}
+
 func ActiveTerminals() map[uintptr]*VteTerminalInstance {
 	return activeTerminals
 }
