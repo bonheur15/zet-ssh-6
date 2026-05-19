@@ -255,6 +255,11 @@ func (t *VteTerminalInstance) FeedChild(text string) {
 	C.vte_terminal_feed_child(termPtr, cText, C.gssize(len(text)))
 }
 
+func (t *VteTerminalInstance) HasSelection() bool {
+	termPtr := (*C.VteTerminal)(unsafe.Pointer(t.Widget.Object.Native()))
+	return C.vte_terminal_get_has_selection(termPtr) != 0
+}
+
 func ActiveTerminals() map[uintptr]*VteTerminalInstance {
 	return activeTerminals
 }

@@ -21,6 +21,9 @@ type TerminalWindow struct {
 	Revealer         *gtk.Revealer
 	HistoryListBox   *gtk.Box
 	currentCmdBuffer string
+	popover          *gtk.Popover
+	btnCopy          *gtk.Button
+	btnPaste         *gtk.Button
 }
 
 func NewTerminalWindow(app *gtk.Application, cfg *config.Config) *TerminalWindow {
@@ -98,6 +101,8 @@ func (tw *TerminalWindow) setupUI() {
 		}
 		titleLabel.SetLabel(title)
 	})
+
+	tw.setupContextMenu()
 }
 
 func (tw *TerminalWindow) applyConfigToInstance(inst *terminal.VteTerminalInstance) {
@@ -339,4 +344,75 @@ func (tw *TerminalWindow) AddCommandToHistory(cmd string) {
 
 	// Save to config file
 	_ = config.SaveConfig(tw.Cfg)
+}
+
+func (tw *TerminalWindow) setupContextMenu() {
+	tw.popover = gtk.NewPopover()
+	tw.popover.SetParent(tw.TermInst.Widget)
+	tw.popover.SetHasArrow(true)
+
+	box := gtk.NewBox(gtk.OrientationVertical, 2)
+
+	// Copy Button
+	tw.btnCopy = gtk.NewButton()
+	tw.btnCopy.AddCSSClass("menu-item-btn")
+	lblCopy := gtk.NewLabel("📋  Copy")
+	lblCopy.AddCSSClass("menu-item-label")
+	lblCopy.SetHAlign(gtk.AlignStart)
+	tw.btnCopy.SetChild(lblCopy)
+	tw.btnCopy.ConnectClicked(func() {
+		if tw.TermInst != nil {
+			tw.TermInst.Copy()
+		}
+		tw.popover.Popdown()
+	})
+	box.Append(tw.btnCopy)
+
+	// Paste Button
+	tw.btnPaste = gtk.NewButton()
+	tw.btnPaste.AddCSSClass("menu-item-btn")
+	lblPaste := gtk.NewLabel("📋  Paste")
+	lblPaste.AddCSSClass("menu-item-label")
+	lblPaste.SetHAlign(gtk.AlignStart)
+	tw.btnPaste.SetChild(lblPaste)
+	tw.btnPaste.ConnectClicked(func() {
+		if tw.TermInst != nil {
+			tw.TermInst.Paste()
+		}
+		tw.popover.Popdown()
+	})
+	box.Append(tw.btnPaste)
+
+	tw.popover.SetChild(box)
+
+	// Click gesture to intercept right clicks and selection releases
+	clickGesture := gtk.NewGestureClick()
+	clickGesture.SetButton(0) // Listen to all mouse buttons (1 = Left, 3 = Right)
+	clickGesture.ConnectReleased(func(nPress int, x float64, y float64) {
+		button := clickGesture.CurrentButton()
+		hasSel := tw.TermInst.HasSelection()
+
+		if button == 3 { // Right click: ALWAYS show appropriate menu
+			tw.btnCopy.SetVisible(hasSel)
+			tw.btnPaste.SetVisible(!hasSel)
+
+			rect := gdk.NewRectangle(int(x), int(y), 1, 1)
+			tw.popover.SetPointingTo(&rect)
+			tw.popover.Popup()
+		} else if button == 1 { // Left click release:
+			// If left click is released and we have selection, show Copy!
+			if hasSel {
+				tw.btnCopy.SetVisible(true)
+				tw.btnPaste.SetVisible(false)
+
+				rect := gdk.NewRectangle(int(x), int(y), 1, 1)
+				tw.popover.SetPointingTo(&rect)
+				tw.popover.Popup()
+			} else {
+				// If left click and no selection, make sure popover is closed
+				tw.popover.Popdown()
+			}
+		}
+	})
+	tw.TermInst.Widget.AddController(clickGesture)
 }

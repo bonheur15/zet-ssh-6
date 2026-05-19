@@ -155,4 +155,33 @@ headerbar label {
 .sidebar-arrow-btn:hover .sidebar-arrow-label {
 	color: #38bdf8;
 }
+
+/* Sleek Context Menu Popover */
+popover > contents {
+	background: #181818 !important;
+	border: 1px solid #282828 !important;
+	border-radius: 6px !important;
+	padding: 4px !important;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+}
+
+.menu-item-btn {
+	background: transparent;
+	border: none;
+	border-radius: 4px;
+	padding: 6px 12px;
+	min-width: 100px;
+	transition: background 0.2s ease;
+}
+
+.menu-item-btn:hover {
+	background: #242424;
+}
+
+.menu-item-label {
+	font-family: inherit;
+	font-size: 11px;
+	font-weight: 500;
+	color: #e0e0e0;
+}
 `
