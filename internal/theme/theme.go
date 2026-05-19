@@ -248,7 +248,7 @@ popover > contents {
 	background: transparent;
 	border: none;
 	border-radius: 4px;
-	padding: 2px 6px;
+	padding: 4px 6px;
 	margin-left: 2px;
 	transition: background 0.2s ease;
 }
@@ -257,12 +257,11 @@ popover > contents {
 	background: #202020;
 }
 
-.group-action-label {
-	font-size: 10px;
-	color: #888888;
+.group-action-btn image {
+	color: #777777;
 }
 
-.group-action-btn:hover .group-action-label {
+.group-action-btn:hover image {
 	color: #ffffff;
 }
 
@@ -301,7 +300,8 @@ popover > contents {
 	background: transparent;
 	border: none;
 	border-radius: 3px;
-	padding: 2px 4px;
+	padding: 4px 6px;
+	margin-left: 4px;
 	transition: background 0.2s ease;
 }
 
@@ -309,12 +309,11 @@ popover > contents {
 	background: rgba(255, 255, 255, 0.05);
 }
 
-.tab-action-label {
-	font-size: 9px;
+.tab-action-btn image {
 	color: #666666;
 }
 
-.tab-action-btn:hover .tab-action-label {
+.tab-action-btn:hover image {
 	color: #ef4444; /* Close button glows red on hover */
 }
 

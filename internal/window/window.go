@@ -467,10 +467,9 @@ func (tw *TerminalWindow) renderWorkspace() {
 		// Create New Tab inside this group (+ Tab)
 		btnNewTab := gtk.NewButton()
 		btnNewTab.AddCSSClass("group-action-btn")
-		btnNewTab.SetTooltipText("Add new tab")
-		lblNewTab := gtk.NewLabel("Add Tab")
-		lblNewTab.AddCSSClass("group-action-label")
-		btnNewTab.SetChild(lblNewTab)
+		btnNewTab.SetTooltipText("Add tab")
+		imgNewTab := gtk.NewImageFromIconName("list-add-symbolic")
+		btnNewTab.SetChild(imgNewTab)
 		btnNewTab.ConnectClicked(func() {
 			tw.createTabInGroup(groupConfig.ID)
 		})
@@ -480,9 +479,8 @@ func (tw *TerminalWindow) renderWorkspace() {
 		btnRenameGroup := gtk.NewButton()
 		btnRenameGroup.AddCSSClass("group-action-btn")
 		btnRenameGroup.SetTooltipText("Rename group")
-		lblRenameGroup := gtk.NewLabel("Rename")
-		lblRenameGroup.AddCSSClass("group-action-label")
-		btnRenameGroup.SetChild(lblRenameGroup)
+		imgRenameGroup := gtk.NewImageFromIconName("document-edit-symbolic")
+		btnRenameGroup.SetChild(imgRenameGroup)
 		btnRenameGroup.ConnectClicked(func() {
 			tw.promptRenameGroup(groupIndex)
 		})
@@ -492,9 +490,8 @@ func (tw *TerminalWindow) renderWorkspace() {
 		btnDelGroup := gtk.NewButton()
 		btnDelGroup.AddCSSClass("group-action-btn")
 		btnDelGroup.SetTooltipText("Delete group")
-		lblDelGroup := gtk.NewLabel("Delete")
-		lblDelGroup.AddCSSClass("group-action-label")
-		btnDelGroup.SetChild(lblDelGroup)
+		imgDelGroup := gtk.NewImageFromIconName("user-trash-symbolic")
+		btnDelGroup.SetChild(imgDelGroup)
 		btnDelGroup.ConnectClicked(func() {
 			tw.deleteGroup(groupIndex)
 		})
@@ -539,13 +536,12 @@ func (tw *TerminalWindow) renderWorkspace() {
 			})
 			tabRow.Append(btnSelectTab)
 
-			// Fully working, comfortably padded large Close button
+			// Fully working, comfortably padded Close button using symbolic cross icon
 			btnCloseTab := gtk.NewButton()
 			btnCloseTab.AddCSSClass("tab-action-btn")
-			btnCloseTab.SetTooltipText("Close Tab")
-			lblCloseTab := gtk.NewLabel("Close")
-			lblCloseTab.AddCSSClass("tab-action-label")
-			btnCloseTab.SetChild(lblCloseTab)
+			btnCloseTab.SetTooltipText("Close tab")
+			imgCloseTab := gtk.NewImageFromIconName("window-close-symbolic")
+			btnCloseTab.SetChild(imgCloseTab)
 			btnCloseTab.ConnectClicked(func() {
 				tw.CloseTab(tabConfig.ID)
 			})
