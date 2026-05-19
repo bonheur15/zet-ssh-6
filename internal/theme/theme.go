@@ -27,14 +27,35 @@ window.terminal-window {
 headerbar {
 	background: #181818;
 	border-bottom: 1px solid #262626;
-	min-height: 34px;
-	padding: 0 12px;
+	min-height: 24px;
+	padding: 0 8px;
+	margin: 0;
+	align-items: center;
+}
+
+headerbar windowhandle {
+	min-height: 24px;
+	padding: 0;
+	margin: 0;
+	align-items: center;
+}
+
+headerbar button {
+	padding: 0;
+	margin: 0 2px;
+	min-height: 18px;
+	min-width: 18px;
+	align-self: center;
 }
 
 headerbar label {
 	font-family: inherit;
-	font-size: 13px;
+	font-size: 11px;
+	font-weight: 600;
 	color: #e0e0e0;
+	padding: 0;
+	margin: 0;
+	align-self: center;
 }
 
 /* ─── VTE Terminal Widget Container ─── */

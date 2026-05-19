@@ -48,12 +48,15 @@ func (tw *TerminalWindow) setupUI() {
 	header := gtk.NewHeaderBar()
 	titleLabel := gtk.NewLabel("Terminal")
 	titleLabel.SetHAlign(gtk.AlignCenter)
+	titleLabel.SetVAlign(gtk.AlignCenter)
 	header.SetTitleWidget(titleLabel)
 	tw.Win.SetTitlebar(header)
 
 	// Single terminal instance
 	tw.TermInst = terminal.NewVteTerminal()
 	tw.TermInst.Widget.AddCSSClass("vte-terminal-widget")
+	tw.TermInst.Widget.SetHExpand(true)
+	tw.TermInst.Widget.SetVExpand(true)
 	tw.TermInst.SetScrollbackLines(tw.Cfg.ScrollbackLines)
 	tw.TermInst.SetCursorBlinkMode(tw.Cfg.CursorBlinkMode)
 	tw.TermInst.SetCursorShape(tw.Cfg.CursorShape)
