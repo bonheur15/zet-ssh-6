@@ -7,28 +7,22 @@ import (
 )
 
 type Config struct {
-	FontName         string  `json:"font_name"`
-	FontSize         int     `json:"font_size"`
-	Theme            string  `json:"theme"`
-	Opacity          float64 `json:"opacity"`
-	Shell            string  `json:"shell"`
-	CursorBlinkMode  int     `json:"cursor_blink_mode"` // 0 = system, 1 = blink on, 2 = blink off
-	CursorShape      int     `json:"cursor_shape"`      // 0 = block, 1 = i-beam, 2 = underline
-	ScrollbackLines  int     `json:"scrollback_lines"`
-	ShowSidebar      bool    `json:"show_sidebar"`
+	FontName         string `json:"font_name"`
+	FontSize         int    `json:"font_size"`
+	Shell            string `json:"shell"`
+	CursorBlinkMode  int    `json:"cursor_blink_mode"` // 0 = system, 1 = blink on, 2 = blink off
+	CursorShape      int    `json:"cursor_shape"`      // 0 = block, 1 = i-beam, 2 = underline
+	ScrollbackLines  int    `json:"scrollback_lines"`
 }
 
 func DefaultConfig() *Config {
 	return &Config{
-		FontName:        "JetBrains Mono",
+		FontName:        "monospace",
 		FontSize:        12,
-		Theme:           "cyberpunk",
-		Opacity:         0.85,
 		Shell:           "/bin/bash",
 		CursorBlinkMode: 1, // On
 		CursorShape:     0, // Block
-		ScrollbackLines: 5000,
-		ShowSidebar:     true,
+		ScrollbackLines: 10000,
 	}
 }
 
