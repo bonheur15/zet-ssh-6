@@ -1,29 +1,44 @@
 package window
 
 import (
+	"fmt"
 	"strings"
+	"time"
 
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+
 	"zet-terminal/internal/config"
 	"zet-terminal/internal/terminal"
 	"zet-terminal/internal/theme"
 )
 
+type TabInstance struct {
+	ID       string
+	Name     string
+	TermInst *terminal.VteTerminalInstance
+	GroupID  string
+}
+
 type TerminalWindow struct {
 	Win              *gtk.ApplicationWindow
 	App              *gtk.Application
 	Cfg              *config.Config
-	TermInst         *terminal.VteTerminalInstance
 	Container        *gtk.Box
 	Overlay          *gtk.Overlay
 	DockBox          *gtk.Box
 	Revealer         *gtk.Revealer
 	HistoryListBox   *gtk.Box
 	currentCmdBuffer string
-	popover          *gtk.Popover
-	btnCopy          *gtk.Button
-	btnPaste         *gtk.Button
+
+	// ─── Premium Tab Management Fields ───
+	Stack            *gtk.Stack
+	TabInstances     map[string]*TabInstance
+	ActiveTabID      string
+	WorkspaceBox     *gtk.Box
+	HistoryRevealer  *gtk.Revealer
+	HistoryHeaderBtn *gtk.Button
+	HistoryArrowLbl  *gtk.Label
 }
 
 func NewTerminalWindow(app *gtk.Application, cfg *config.Config) *TerminalWindow {
@@ -33,9 +48,10 @@ func NewTerminalWindow(app *gtk.Application, cfg *config.Config) *TerminalWindow
 	win.AddCSSClass("terminal-window")
 
 	tw := &TerminalWindow{
-		Win: win,
-		App: app,
-		Cfg: cfg,
+		Win:          win,
+		App:          app,
+		Cfg:          cfg,
+		TabInstances: make(map[string]*TabInstance),
 	}
 
 	tw.setupUI()
@@ -44,11 +60,17 @@ func NewTerminalWindow(app *gtk.Application, cfg *config.Config) *TerminalWindow
 	// Show and present window to grab focus at OS/WM level
 	win.Present()
 
-	// Apply fonts & theme colors AFTER realization/show to ensure correct DPI and cell metrics
-	tw.applyConfigToInstance(tw.TermInst)
-
-	// Grab input focus directly on the terminal widget so the user can type immediately
-	tw.TermInst.Widget.GrabFocus()
+	// Pick the first loaded tab to activate
+	var firstTabID string
+	for _, group := range tw.Cfg.TabGroups {
+		if len(group.Tabs) > 0 {
+			firstTabID = group.Tabs[0].ID
+			break
+		}
+	}
+	if firstTabID != "" {
+		tw.ActivateTab(firstTabID)
+	}
 
 	return tw
 }
@@ -62,52 +84,153 @@ func (tw *TerminalWindow) setupUI() {
 	header.SetTitleWidget(titleLabel)
 	tw.Win.SetTitlebar(header)
 
-	// Single terminal instance
-	tw.TermInst = terminal.NewVteTerminal()
-	tw.TermInst.Widget.AddCSSClass("vte-terminal-widget")
-	tw.TermInst.Widget.SetHExpand(true)
-	tw.TermInst.Widget.SetVExpand(true)
-	tw.TermInst.SetScrollbackLines(tw.Cfg.ScrollbackLines)
-	tw.TermInst.SetCursorBlinkMode(tw.Cfg.CursorBlinkMode)
-	tw.TermInst.SetCursorShape(tw.Cfg.CursorShape)
+	// ─── Stack for Switchable VTE widgets ───
+	tw.Stack = gtk.NewStack()
+	tw.Stack.SetTransitionType(gtk.StackTransitionTypeNone)
+	tw.Stack.SetHExpand(true)
+	tw.Stack.SetVExpand(true)
 
 	// Container box
 	tw.Container = gtk.NewBox(gtk.OrientationVertical, 0)
 	tw.Container.AddCSSClass("terminal-container")
 	tw.Container.SetHExpand(true)
 	tw.Container.SetVExpand(true)
-	tw.Container.Append(tw.TermInst.Widget)
+	tw.Container.Append(tw.Stack)
 
 	// Wrap in Overlay for side dock
 	tw.Overlay = gtk.NewOverlay()
 	tw.Overlay.SetChild(tw.Container)
 	tw.Win.SetChild(tw.Overlay)
 
-	// Set up the left hover dock
+	// Load tabs from persistent config groups
+	hasTabsLoaded := false
+	for _, group := range tw.Cfg.TabGroups {
+		for _, tab := range group.Tabs {
+			tw.CreateTab(tab.ID, tab.Name, group.ID, false)
+			hasTabsLoaded = true
+		}
+	}
+
+	// Default fallback tab structure if no tabs loaded
+	if !hasTabsLoaded {
+		tw.createDefaultTabStructure()
+	}
+
+	// Set up the left hover dock (workspace tabs & past commands)
 	tw.setupSideDock()
 
-	// Spawn default shell inside PTY
-	tw.TermInst.SpawnShell(tw.Cfg.Shell, "")
+	// Sync window title label to VTE title updates
+	tw.TermInstOnTitleUpdate()
+}
 
-	// Signal Handlers
-	tw.TermInst.OnChildExited(func(status int) {
-		tw.TermInst.Destroy()
-		tw.Win.Close()
-	})
-
-	tw.TermInst.OnWindowTitleChanged(func(title string) {
-		if title == "" {
-			title = "Terminal"
-		}
-		titleLabel.SetLabel(title)
-	})
-
-	tw.setupContextMenu()
+func (tw *TerminalWindow) TermInstOnTitleUpdate() {
+	// Setup window title bindings on active tabs dynamically if needed
 }
 
 func (tw *TerminalWindow) applyConfigToInstance(inst *terminal.VteTerminalInstance) {
 	inst.SetFont(tw.Cfg.FontName, tw.Cfg.FontSize)
 	inst.SetColors(theme.DefaultPalette.Foreground, theme.DefaultPalette.Background, theme.DefaultPalette.Palette)
+}
+
+func (tw *TerminalWindow) CreateTab(id, name, groupID string, saveToConfig bool) *TabInstance {
+	inst := terminal.NewVteTerminal()
+	inst.Widget.AddCSSClass("vte-terminal-widget")
+	inst.Widget.SetHExpand(true)
+	inst.Widget.SetVExpand(true)
+	inst.SetScrollbackLines(tw.Cfg.ScrollbackLines)
+	inst.SetCursorBlinkMode(tw.Cfg.CursorBlinkMode)
+	inst.SetCursorShape(tw.Cfg.CursorShape)
+
+	tw.applyConfigToInstance(inst)
+
+	tab := &TabInstance{
+		ID:       id,
+		Name:     name,
+		TermInst: inst,
+		GroupID:  groupID,
+	}
+
+	tw.TabInstances[id] = tab
+
+	// Add widget to the Stack
+	tw.Stack.AddChild(inst.Widget)
+
+	// Spawn shell
+	inst.SpawnShell(tw.Cfg.Shell, "")
+
+	// Signal Handlers
+	inst.OnChildExited(func(status int) {
+		inst.Destroy()
+		tw.CloseTab(id)
+	})
+
+	inst.OnWindowTitleChanged(func(title string) {
+		// Retain user customization but update terminal display title if empty
+	})
+
+	// Setup right click & release copy-context menu popovers
+	tw.setupContextMenuForTab(tab)
+
+	if saveToConfig {
+		tw.saveTabsToConfig()
+		tw.renderWorkspace()
+	}
+
+	return tab
+}
+
+func (tw *TerminalWindow) ActivateTab(id string) {
+	tab, ok := tw.TabInstances[id]
+	if !ok {
+		return
+	}
+
+	tw.ActiveTabID = id
+	tw.Stack.SetVisibleChild(tab.TermInst.Widget)
+
+	// Update window titlebar
+	tw.Win.SetTitle(tab.Name + " - Terminal")
+
+	tw.renderWorkspace()
+
+	// Grab input focus directly on active terminal instance
+	tab.TermInst.Widget.GrabFocus()
+}
+
+func (tw *TerminalWindow) CloseTab(id string) {
+	tab, ok := tw.TabInstances[id]
+	if !ok {
+		return
+	}
+
+	tw.Stack.Remove(tab.TermInst.Widget)
+	delete(tw.TabInstances, id)
+
+	tw.removeTabFromConfig(id)
+
+	if len(tw.TabInstances) == 0 {
+		tw.Win.Close()
+		return
+	}
+
+	if tw.ActiveTabID == id {
+		// Pick first available tab
+		for nextID := range tw.TabInstances {
+			tw.ActivateTab(nextID)
+			break
+		}
+	} else {
+		tw.renderWorkspace()
+	}
+}
+
+func (tw *TerminalWindow) CloseTabSilently(id string) {
+	tab, ok := tw.TabInstances[id]
+	if !ok {
+		return
+	}
+	tw.Stack.Remove(tab.TermInst.Widget)
+	delete(tw.TabInstances, id)
 }
 
 func (tw *TerminalWindow) setupShortcuts() {
@@ -123,14 +246,14 @@ func (tw *TerminalWindow) setupShortcuts() {
 			case 'N', 'n': // Ctrl+Shift+N -> New Window
 				NewTerminalWindow(tw.App, tw.Cfg)
 				return true
-			case 'C', 'c': // Ctrl+Shift+C -> Copy
-				if tw.TermInst != nil {
-					tw.TermInst.Copy()
+			case 'C', 'c': // Ctrl+Shift+C -> Copy active selection
+				if activeTab, ok := tw.TabInstances[tw.ActiveTabID]; ok {
+					activeTab.TermInst.Copy()
 				}
 				return true
-			case 'V', 'v': // Ctrl+Shift+V -> Paste
-				if tw.TermInst != nil {
-					tw.TermInst.Paste()
+			case 'V', 'v': // Ctrl+Shift+V -> Paste system clipboard
+				if activeTab, ok := tw.TabInstances[tw.ActiveTabID]; ok {
+					activeTab.TermInst.Paste()
 				}
 				return true
 			case '+', '=': // Ctrl+Shift++ or Ctrl+Shift+= -> Zoom In
@@ -139,15 +262,19 @@ func (tw *TerminalWindow) setupShortcuts() {
 					tw.Cfg.FontSize = 72
 				}
 				_ = config.SaveConfig(tw.Cfg)
-				tw.applyConfigToInstance(tw.TermInst)
+				for _, tab := range tw.TabInstances {
+					tw.applyConfigToInstance(tab.TermInst)
+				}
 				return true
-			case '-', '_': // Ctrl+Shift+- or Ctrl+Shift+_ -> Zoom Out
+			case '-': // Ctrl+Shift+- -> Zoom Out
 				tw.Cfg.FontSize--
 				if tw.Cfg.FontSize < 4 {
 					tw.Cfg.FontSize = 4
 				}
 				_ = config.SaveConfig(tw.Cfg)
-				tw.applyConfigToInstance(tw.TermInst)
+				for _, tab := range tw.TabInstances {
+					tw.applyConfigToInstance(tab.TermInst)
+				}
 				return true
 			}
 		}
@@ -170,7 +297,6 @@ func (tw *TerminalWindow) setupShortcuts() {
 				}
 			}
 		} else if isCtrl && (keyval == 'C' || keyval == 'c' || keyval == 'D' || keyval == 'd') {
-			// Ctrl+C or Ctrl+D cancels current line input
 			tw.currentCmdBuffer = ""
 		}
 
@@ -180,7 +306,6 @@ func (tw *TerminalWindow) setupShortcuts() {
 }
 
 func (tw *TerminalWindow) setupSideDock() {
-	// ─── Revealer (slides horizontal) ───
 	tw.Revealer = gtk.NewRevealer()
 	tw.Revealer.SetTransitionType(gtk.RevealerTransitionTypeSlideRight)
 	tw.Revealer.SetTransitionDuration(250)
@@ -192,24 +317,28 @@ func (tw *TerminalWindow) setupSideDock() {
 	panelBox.SetSizeRequest(220, -1)
 	panelBox.SetVExpand(true)
 
-	// Panel Title
-	titleLabel := gtk.NewLabel("COMMANDS")
-	titleLabel.AddCSSClass("sidebar-title")
-	titleLabel.SetHAlign(gtk.AlignStart)
-	panelBox.Append(titleLabel)
+	// Workspace Header
+	wsHeader := gtk.NewLabel("Workspace")
+	wsHeader.AddCSSClass("workspace-header")
+	wsHeader.SetHAlign(gtk.AlignStart)
+	wsHeader.SetMarginStart(4)
+	panelBox.Append(wsHeader)
 
-	// Scrolled window for history list
+	// Scrolled window for workspace explorer
 	scrolled := gtk.NewScrolledWindow()
 	scrolled.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
 	scrolled.SetVExpand(true)
 	scrolled.SetHExpand(true)
 	panelBox.Append(scrolled)
 
-	// List container inside scrolled
-	tw.HistoryListBox = gtk.NewBox(gtk.OrientationVertical, 0)
-	tw.HistoryListBox.SetVExpand(true)
-	tw.HistoryListBox.SetHExpand(true)
-	scrolled.SetChild(tw.HistoryListBox)
+	// Workspace Box inside scrolled
+	tw.WorkspaceBox = gtk.NewBox(gtk.OrientationVertical, 0)
+	tw.WorkspaceBox.SetVExpand(true)
+	tw.WorkspaceBox.SetHExpand(true)
+	scrolled.SetChild(tw.WorkspaceBox)
+
+	// Collapsible Section for Past Commands
+	tw.setupHistorySection(panelBox)
 
 	tw.Revealer.SetChild(panelBox)
 
@@ -227,31 +356,452 @@ func (tw *TerminalWindow) setupSideDock() {
 	tw.DockBox.Append(tw.Revealer)
 	tw.DockBox.Append(triggerBar)
 
-	// Add DockBox as an overlay child
 	tw.Overlay.AddOverlay(tw.DockBox)
 
-	// Add Hover Event Controller
+	// Add Hover Event Controllers
 	motionCtrl := gtk.NewEventControllerMotion()
 	motionCtrl.ConnectEnter(func(x float64, y float64) {
-		tw.updateHistoryUI()
+		tw.renderWorkspace()
 		tw.Revealer.SetRevealChild(true)
 	})
 	motionCtrl.ConnectLeave(func() {
 		tw.Revealer.SetRevealChild(false)
 	})
-	tw.DockBox.AddController(motionCtrl)
+	triggerBar.AddController(motionCtrl)
 
-	// Populate initially
-	tw.updateHistoryUI()
+	panelMotionCtrl := gtk.NewEventControllerMotion()
+	panelMotionCtrl.ConnectEnter(func(x float64, y float64) {
+		tw.Revealer.SetRevealChild(true)
+	})
+	panelMotionCtrl.ConnectLeave(func() {
+		tw.Revealer.SetRevealChild(false)
+	})
+	panelBox.AddController(panelMotionCtrl)
+}
+
+func (tw *TerminalWindow) setupHistorySection(parentBox *gtk.Box) {
+	tw.HistoryHeaderBtn = gtk.NewButton()
+	tw.HistoryHeaderBtn.AddCSSClass("history-section-header")
+	tw.HistoryHeaderBtn.SetHAlign(gtk.AlignFill)
+
+	headerBox := gtk.NewBox(gtk.OrientationHorizontal, 0)
+	headerBox.SetHExpand(true)
+
+	tw.HistoryArrowLbl = gtk.NewLabel("▶")
+	tw.HistoryArrowLbl.AddCSSClass("history-header-arrow")
+	headerBox.Append(tw.HistoryArrowLbl)
+
+	title := gtk.NewLabel("Past Commands")
+	title.AddCSSClass("history-header-title")
+	headerBox.Append(title)
+
+	tw.HistoryHeaderBtn.SetChild(headerBox)
+	parentBox.Append(tw.HistoryHeaderBtn)
+
+	tw.HistoryRevealer = gtk.NewRevealer()
+	tw.HistoryRevealer.SetTransitionType(gtk.RevealerTransitionTypeSlideDown)
+	tw.HistoryRevealer.SetTransitionDuration(200)
+	tw.HistoryRevealer.SetRevealChild(false)
+
+	tw.HistoryListBox = gtk.NewBox(gtk.OrientationVertical, 0)
+	tw.HistoryListBox.SetHExpand(true)
+	tw.HistoryRevealer.SetChild(tw.HistoryListBox)
+	parentBox.Append(tw.HistoryRevealer)
+
+	tw.HistoryHeaderBtn.ConnectClicked(func() {
+		isExpanded := tw.HistoryRevealer.RevealChild()
+		tw.HistoryRevealer.SetRevealChild(!isExpanded)
+		if !isExpanded {
+			tw.HistoryArrowLbl.SetLabel("▼")
+			tw.updateHistoryUI()
+		} else {
+			tw.HistoryArrowLbl.SetLabel("▶")
+		}
+	})
+}
+
+func (tw *TerminalWindow) renderWorkspace() {
+	for child := tw.WorkspaceBox.FirstChild(); child != nil; child = tw.WorkspaceBox.FirstChild() {
+		tw.WorkspaceBox.Remove(child)
+	}
+
+	// ─── Create Group Button ───
+	btnNewGroup := gtk.NewButton()
+	btnNewGroup.AddCSSClass("workspace-action-btn")
+	lblNewGroup := gtk.NewLabel("+ New Group")
+	lblNewGroup.AddCSSClass("workspace-action-label")
+	btnNewGroup.SetChild(lblNewGroup)
+	btnNewGroup.ConnectClicked(func() {
+		tw.promptCreateGroup()
+	})
+	tw.WorkspaceBox.Append(btnNewGroup)
+
+	// ─── Render Groups and Tabs ───
+	for gIdx, group := range tw.Cfg.TabGroups {
+		groupConfig := group
+		groupIndex := gIdx
+
+		groupContainer := gtk.NewBox(gtk.OrientationVertical, 0)
+
+		headerRow := gtk.NewBox(gtk.OrientationHorizontal, 0)
+		headerRow.AddCSSClass("group-header-row")
+		headerRow.SetHExpand(true)
+
+		btnToggle := gtk.NewButton()
+		btnToggle.AddCSSClass("group-toggle-btn")
+		arrowStr := "▼"
+		if groupConfig.Collapsed {
+			arrowStr = "▶"
+		}
+		lblToggle := gtk.NewLabel(arrowStr)
+		lblToggle.AddCSSClass("group-toggle-label")
+		btnToggle.SetChild(lblToggle)
+		headerRow.Append(btnToggle)
+
+		lblTitle := gtk.NewLabel(groupConfig.Name)
+		lblTitle.AddCSSClass("group-title-label")
+		lblTitle.SetHAlign(gtk.AlignStart)
+		lblTitle.SetHExpand(true)
+		headerRow.Append(lblTitle)
+
+		// Create New Tab inside this group (+)
+		btnNewTab := gtk.NewButton()
+		btnNewTab.AddCSSClass("group-action-btn")
+		btnNewTab.SetTooltipText("New Tab inside group")
+		lblNewTab := gtk.NewLabel("+")
+		lblNewTab.AddCSSClass("group-action-label")
+		btnNewTab.SetChild(lblNewTab)
+		btnNewTab.ConnectClicked(func() {
+			tw.createTabInGroup(groupConfig.ID)
+		})
+		headerRow.Append(btnNewTab)
+
+		// Rename Group button (✎)
+		btnRenameGroup := gtk.NewButton()
+		btnRenameGroup.AddCSSClass("group-action-btn")
+		btnRenameGroup.SetTooltipText("Rename group")
+		lblRenameGroup := gtk.NewLabel("✎")
+		lblRenameGroup.AddCSSClass("group-action-label")
+		btnRenameGroup.SetChild(lblRenameGroup)
+		btnRenameGroup.ConnectClicked(func() {
+			tw.promptRenameGroup(groupIndex)
+		})
+		headerRow.Append(btnRenameGroup)
+
+		// Delete Group button (🗑)
+		btnDelGroup := gtk.NewButton()
+		btnDelGroup.AddCSSClass("group-action-btn")
+		btnDelGroup.SetTooltipText("Delete group")
+		lblDelGroup := gtk.NewLabel("🗑")
+		lblDelGroup.AddCSSClass("group-action-label")
+		btnDelGroup.SetChild(lblDelGroup)
+		btnDelGroup.ConnectClicked(func() {
+			tw.deleteGroup(groupIndex)
+		})
+		headerRow.Append(btnDelGroup)
+
+		groupContainer.Append(headerRow)
+
+		childrenBox := gtk.NewBox(gtk.OrientationVertical, 2)
+		childrenBox.SetVisible(!groupConfig.Collapsed)
+
+		btnToggle.ConnectClicked(func() {
+			tw.Cfg.TabGroups[groupIndex].Collapsed = !tw.Cfg.TabGroups[groupIndex].Collapsed
+			_ = config.SaveConfig(tw.Cfg)
+			tw.renderWorkspace()
+		})
+
+		for _, tabCfg := range groupConfig.Tabs {
+			tabConfig := tabCfg
+
+			tabRow := gtk.NewBox(gtk.OrientationHorizontal, 0)
+			tabRow.AddCSSClass("tab-row")
+			tabRow.SetHExpand(true)
+
+			if tabConfig.ID == tw.ActiveTabID {
+				tabRow.AddCSSClass("active")
+			}
+
+			btnSelectTab := gtk.NewButton()
+			btnSelectTab.AddCSSClass("tab-select-btn")
+			btnSelectTab.SetHExpand(true)
+			btnSelectTab.SetHAlign(gtk.AlignFill)
+
+			lblTab := gtk.NewLabel(tabConfig.Name)
+			lblTab.AddCSSClass("tab-label")
+			lblTab.SetHAlign(gtk.AlignStart)
+			lblTab.SetXAlign(0.0)
+			btnSelectTab.SetChild(lblTab)
+
+			btnSelectTab.ConnectClicked(func() {
+				tw.ActivateTab(tabConfig.ID)
+			})
+			tabRow.Append(btnSelectTab)
+
+			// Rename Tab button (✎)
+			btnRenameTab := gtk.NewButton()
+			btnRenameTab.AddCSSClass("tab-action-btn")
+			btnRenameTab.SetTooltipText("Rename tab")
+			lblRenameTab := gtk.NewLabel("✎")
+			lblRenameTab.AddCSSClass("tab-action-label")
+			btnRenameTab.SetChild(lblRenameTab)
+			btnRenameTab.ConnectClicked(func() {
+				tw.promptRenameTab(tabConfig.ID)
+			})
+			tabRow.Append(btnRenameTab)
+
+			// Close Tab button (×)
+			btnCloseTab := gtk.NewButton()
+			btnCloseTab.AddCSSClass("tab-action-btn")
+			btnCloseTab.SetTooltipText("Close Tab")
+			lblCloseTab := gtk.NewLabel("×")
+			lblCloseTab.AddCSSClass("tab-action-label")
+			btnCloseTab.SetChild(lblCloseTab)
+			btnCloseTab.ConnectClicked(func() {
+				tw.CloseTab(tabConfig.ID)
+			})
+			tabRow.Append(btnCloseTab)
+
+			childrenBox.Append(tabRow)
+		}
+
+		groupContainer.Append(childrenBox)
+		tw.WorkspaceBox.Append(groupContainer)
+	}
+}
+
+func (tw *TerminalWindow) promptCreateGroup() {
+	popover := gtk.NewPopover()
+	popover.SetParent(tw.WorkspaceBox)
+	popover.SetHasArrow(true)
+
+	box := gtk.NewBox(gtk.OrientationVertical, 4)
+	box.SetMarginBottom(4)
+	box.SetMarginTop(4)
+	box.SetMarginStart(4)
+	box.SetMarginEnd(4)
+
+	lbl := gtk.NewLabel("Group Name:")
+	lbl.AddCSSClass("menu-item-label")
+	lbl.SetHAlign(gtk.AlignStart)
+	box.Append(lbl)
+
+	entry := gtk.NewEntry()
+	entry.AddCSSClass("sidebar-entry")
+	entry.SetPlaceholderText("SSH, Dev, etc.")
+	box.Append(entry)
+
+	btnCreate := gtk.NewButton()
+	btnCreate.AddCSSClass("workspace-action-btn")
+	lblCreate := gtk.NewLabel("Create")
+	lblCreate.AddCSSClass("workspace-action-label")
+	btnCreate.SetChild(lblCreate)
+
+	btnCreate.ConnectClicked(func() {
+		name := entry.Text()
+		if name == "" {
+			name = "New Group"
+		}
+		groupID := fmt.Sprintf("group-%d", time.Now().UnixNano())
+		newGroup := config.GroupConfig{
+			ID:        groupID,
+			Name:      name,
+			Collapsed: false,
+			Tabs:      []config.TabConfig{},
+		}
+		tw.Cfg.TabGroups = append(tw.Cfg.TabGroups, newGroup)
+		_ = config.SaveConfig(tw.Cfg)
+		tw.renderWorkspace()
+		popover.Popdown()
+	})
+	box.Append(btnCreate)
+
+	popover.SetChild(box)
+	popover.Popup()
+}
+
+func (tw *TerminalWindow) createTabInGroup(groupID string) {
+	tabID := fmt.Sprintf("tab-%d", time.Now().UnixNano())
+	tabName := "Console"
+
+	for i, group := range tw.Cfg.TabGroups {
+		if group.ID == groupID {
+			tw.Cfg.TabGroups[i].Tabs = append(tw.Cfg.TabGroups[i].Tabs, config.TabConfig{
+				ID:   tabID,
+				Name: tabName,
+			})
+			_ = config.SaveConfig(tw.Cfg)
+
+			tw.CreateTab(tabID, tabName, groupID, false)
+			tw.ActivateTab(tabID)
+			break
+		}
+	}
+}
+
+func (tw *TerminalWindow) promptRenameGroup(groupIndex int) {
+	popover := gtk.NewPopover()
+	popover.SetParent(tw.WorkspaceBox)
+	popover.SetHasArrow(true)
+
+	box := gtk.NewBox(gtk.OrientationVertical, 4)
+	box.SetMarginBottom(4)
+	box.SetMarginTop(4)
+	box.SetMarginStart(4)
+	box.SetMarginEnd(4)
+
+	lbl := gtk.NewLabel("Rename Group:")
+	lbl.AddCSSClass("menu-item-label")
+	lbl.SetHAlign(gtk.AlignStart)
+	box.Append(lbl)
+
+	entry := gtk.NewEntry()
+	entry.AddCSSClass("sidebar-entry")
+	entry.SetText(tw.Cfg.TabGroups[groupIndex].Name)
+	box.Append(entry)
+
+	btnSave := gtk.NewButton()
+	btnSave.AddCSSClass("workspace-action-btn")
+	lblSave := gtk.NewLabel("Save")
+	lblSave.AddCSSClass("workspace-action-label")
+	btnSave.SetChild(lblSave)
+
+	btnSave.ConnectClicked(func() {
+		name := entry.Text()
+		if name != "" {
+			tw.Cfg.TabGroups[groupIndex].Name = name
+			_ = config.SaveConfig(tw.Cfg)
+			tw.renderWorkspace()
+		}
+		popover.Popdown()
+	})
+	box.Append(btnSave)
+
+	popover.SetChild(box)
+	popover.Popup()
+}
+
+func (tw *TerminalWindow) deleteGroup(groupIndex int) {
+	group := tw.Cfg.TabGroups[groupIndex]
+
+	for _, tabCfg := range group.Tabs {
+		tw.CloseTabSilently(tabCfg.ID)
+	}
+
+	tw.Cfg.TabGroups = append(tw.Cfg.TabGroups[:groupIndex], tw.Cfg.TabGroups[groupIndex+1:]...)
+	_ = config.SaveConfig(tw.Cfg)
+
+	if len(tw.TabInstances) == 0 {
+		tw.createDefaultTabStructure()
+	} else {
+		tw.renderWorkspace()
+	}
+}
+
+func (tw *TerminalWindow) promptRenameTab(tabID string) {
+	tab, ok := tw.TabInstances[tabID]
+	if !ok {
+		return
+	}
+
+	popover := gtk.NewPopover()
+	popover.SetParent(tw.WorkspaceBox)
+	popover.SetHasArrow(true)
+
+	box := gtk.NewBox(gtk.OrientationVertical, 4)
+	box.SetMarginBottom(4)
+	box.SetMarginTop(4)
+	box.SetMarginStart(4)
+	box.SetMarginEnd(4)
+
+	lbl := gtk.NewLabel("Rename Tab:")
+	lbl.AddCSSClass("menu-item-label")
+	lbl.SetHAlign(gtk.AlignStart)
+	box.Append(lbl)
+
+	entry := gtk.NewEntry()
+	entry.AddCSSClass("sidebar-entry")
+	entry.SetText(tab.Name)
+	box.Append(entry)
+
+	btnSave := gtk.NewButton()
+	btnSave.AddCSSClass("workspace-action-btn")
+	lblSave := gtk.NewLabel("Save")
+	lblSave.AddCSSClass("workspace-action-label")
+	btnSave.SetChild(lblSave)
+
+	btnSave.ConnectClicked(func() {
+		name := entry.Text()
+		if name != "" {
+			tab.Name = name
+			tw.updateTabNameInConfig(tabID, name)
+			_ = config.SaveConfig(tw.Cfg)
+
+			if tw.ActiveTabID == tabID {
+				tw.Win.SetTitle(name + " - Terminal")
+			}
+			tw.renderWorkspace()
+		}
+		popover.Popdown()
+	})
+	box.Append(btnSave)
+
+	popover.SetChild(box)
+	popover.Popup()
+}
+
+func (tw *TerminalWindow) updateTabNameInConfig(tabID, name string) {
+	for gIdx, group := range tw.Cfg.TabGroups {
+		for tIdx, tab := range group.Tabs {
+			if tab.ID == tabID {
+				tw.Cfg.TabGroups[gIdx].Tabs[tIdx].Name = name
+				return
+			}
+		}
+	}
+}
+
+func (tw *TerminalWindow) removeTabFromConfig(tabID string) {
+	for gIdx, group := range tw.Cfg.TabGroups {
+		for tIdx, tab := range group.Tabs {
+			if tab.ID == tabID {
+				tw.Cfg.TabGroups[gIdx].Tabs = append(tw.Cfg.TabGroups[gIdx].Tabs[:tIdx], tw.Cfg.TabGroups[gIdx].Tabs[tIdx+1:]...)
+				_ = config.SaveConfig(tw.Cfg)
+				return
+			}
+		}
+	}
+}
+
+func (tw *TerminalWindow) saveTabsToConfig() {
+	// Sync changes
+}
+
+func (tw *TerminalWindow) createDefaultTabStructure() {
+	tw.Cfg.TabGroups = []config.GroupConfig{
+		{
+			ID:        "group-general",
+			Name:      "General Workspace",
+			Collapsed: false,
+			Tabs: []config.TabConfig{
+				{
+					ID:   "tab-1",
+					Name: "Primary Console",
+				},
+			},
+		},
+	}
+	_ = config.SaveConfig(tw.Cfg)
+
+	tw.CreateTab("tab-1", "Primary Console", "group-general", false)
+	tw.ActivateTab("tab-1")
 }
 
 func (tw *TerminalWindow) updateHistoryUI() {
-	// Clear existing list items
 	for child := tw.HistoryListBox.FirstChild(); child != nil; child = tw.HistoryListBox.FirstChild() {
 		tw.HistoryListBox.Remove(child)
 	}
 
-	// If history is empty, show a placeholder label
 	if len(tw.Cfg.CommandHistory) == 0 {
 		emptyLabel := gtk.NewLabel("No commands run yet.")
 		emptyLabel.AddCSSClass("sidebar-btn-label")
@@ -261,16 +811,13 @@ func (tw *TerminalWindow) updateHistoryUI() {
 		return
 	}
 
-	// Populate flat command rows: [ Text Button (Copy on click) | Arrow Button (Execute on click) ]
 	for _, cmd := range tw.Cfg.CommandHistory {
 		cmdStr := cmd
 
-		// Row Box
 		row := gtk.NewBox(gtk.OrientationHorizontal, 0)
 		row.AddCSSClass("sidebar-row")
 		row.SetHExpand(true)
 
-		// Text Button showing command (Copies command on click)
 		btnText := gtk.NewButton()
 		btnText.AddCSSClass("sidebar-btn")
 		btnText.SetHExpand(true)
@@ -294,7 +841,6 @@ func (tw *TerminalWindow) updateHistoryUI() {
 		})
 		row.Append(btnText)
 
-		// Arrow Button to execute command
 		btnArrow := gtk.NewButton()
 		btnArrow.AddCSSClass("sidebar-arrow-btn")
 		btnArrow.SetTooltipText("Execute command")
@@ -304,10 +850,12 @@ func (tw *TerminalWindow) updateHistoryUI() {
 		btnArrow.SetChild(lblArrow)
 
 		btnArrow.ConnectClicked(func() {
-			if tw.TermInst != nil {
-				tw.TermInst.FeedChild(cmdStr + "\n")
-				tw.Revealer.SetRevealChild(false)
-				tw.TermInst.Widget.GrabFocus()
+			if tw.ActiveTabID != "" {
+				if activeTab, ok := tw.TabInstances[tw.ActiveTabID]; ok {
+					activeTab.TermInst.FeedChild(cmdStr + "\n")
+					tw.Revealer.SetRevealChild(false)
+					activeTab.TermInst.Widget.GrabFocus()
+				}
 			}
 		})
 		row.Append(btnArrow)
@@ -318,101 +866,86 @@ func (tw *TerminalWindow) updateHistoryUI() {
 
 func (tw *TerminalWindow) AddCommandToHistory(cmd string) {
 	cmd = strings.TrimSpace(cmd)
-	// We ignore commands that are too short (< 2 chars) or too long (> 60 chars)
 	if len(cmd) < 2 || len(cmd) > 60 {
 		return
 	}
 
-	// We ignore denylisted commands: ls, clear, top
 	cmdLower := strings.ToLower(cmd)
 	if cmdLower == "ls" || cmdLower == "clear" || cmdLower == "top" {
 		return
 	}
 
-	// Don't add if it is the same as the most recent command
 	if len(tw.Cfg.CommandHistory) > 0 && tw.Cfg.CommandHistory[0] == cmd {
 		return
 	}
 
-	// Prepend to command history
 	tw.Cfg.CommandHistory = append([]string{cmd}, tw.Cfg.CommandHistory...)
 
-	// Truncate to maximum 10 items
 	if len(tw.Cfg.CommandHistory) > 10 {
 		tw.Cfg.CommandHistory = tw.Cfg.CommandHistory[:10]
 	}
 
-	// Save to config file
 	_ = config.SaveConfig(tw.Cfg)
 }
 
-func (tw *TerminalWindow) setupContextMenu() {
-	tw.popover = gtk.NewPopover()
-	tw.popover.SetParent(tw.TermInst.Widget)
-	tw.popover.SetHasArrow(true)
+func (tw *TerminalWindow) setupContextMenuForTab(tab *TabInstance) {
+	popover := gtk.NewPopover()
+	popover.SetParent(tab.TermInst.Widget)
+	popover.SetHasArrow(true)
 
 	box := gtk.NewBox(gtk.OrientationVertical, 2)
 
-	// Copy Button
-	tw.btnCopy = gtk.NewButton()
-	tw.btnCopy.AddCSSClass("menu-item-btn")
+	btnCopy := gtk.NewButton()
+	btnCopy.AddCSSClass("menu-item-btn")
 	lblCopy := gtk.NewLabel("📋  Copy")
 	lblCopy.AddCSSClass("menu-item-label")
 	lblCopy.SetHAlign(gtk.AlignStart)
-	tw.btnCopy.SetChild(lblCopy)
-	tw.btnCopy.ConnectClicked(func() {
-		if tw.TermInst != nil {
-			tw.TermInst.Copy()
-		}
-		tw.popover.Popdown()
+	btnCopy.SetChild(lblCopy)
+	btnCopy.ConnectClicked(func() {
+		tab.TermInst.Copy()
+		popover.Popdown()
 	})
-	box.Append(tw.btnCopy)
+	box.Append(btnCopy)
 
-	// Paste Button
-	tw.btnPaste = gtk.NewButton()
-	tw.btnPaste.AddCSSClass("menu-item-btn")
+	btnPaste := gtk.NewButton()
+	btnPaste.AddCSSClass("menu-item-btn")
 	lblPaste := gtk.NewLabel("📋  Paste")
 	lblPaste.AddCSSClass("menu-item-label")
 	lblPaste.SetHAlign(gtk.AlignStart)
-	tw.btnPaste.SetChild(lblPaste)
-	tw.btnPaste.ConnectClicked(func() {
-		if tw.TermInst != nil {
-			tw.TermInst.Paste()
-		}
-		tw.popover.Popdown()
+	btnPaste.SetChild(lblPaste)
+	btnPaste.ConnectClicked(func() {
+		tab.TermInst.Paste()
+		popover.Popdown()
 	})
-	box.Append(tw.btnPaste)
+	box.Append(btnPaste)
 
-	tw.popover.SetChild(box)
+	popover.SetChild(box)
 
-	// Click gesture to intercept right clicks and selection releases
 	clickGesture := gtk.NewGestureClick()
-	clickGesture.SetButton(0) // Listen to all mouse buttons (1 = Left, 3 = Right)
+	clickGesture.SetButton(0)
 	clickGesture.ConnectReleased(func(nPress int, x float64, y float64) {
 		button := clickGesture.CurrentButton()
-		hasSel := tw.TermInst.HasSelection()
+		hasSel := tab.TermInst.HasSelection()
 
-		if button == 3 { // Right click: ALWAYS show appropriate menu
-			tw.btnCopy.SetVisible(hasSel)
-			tw.btnPaste.SetVisible(!hasSel)
+		if button == 3 { // Right click
+			btnCopy.SetVisible(hasSel)
+			btnPaste.SetVisible(!hasSel)
 
 			rect := gdk.NewRectangle(int(x), int(y), 1, 1)
-			tw.popover.SetPointingTo(&rect)
-			tw.popover.Popup()
-		} else if button == 1 { // Left click release:
-			// If left click is released and we have selection, show Copy!
+			popover.SetPointingTo(&rect)
+			popover.Popup()
+		} else if button == 1 { // Left click
 			if hasSel {
-				tw.btnCopy.SetVisible(true)
-				tw.btnPaste.SetVisible(false)
+				btnCopy.SetVisible(true)
+				btnPaste.SetVisible(false)
 
 				rect := gdk.NewRectangle(int(x), int(y), 1, 1)
-				tw.popover.SetPointingTo(&rect)
-				tw.popover.Popup()
+				popover.SetPointingTo(&rect)
+				popover.Popup()
 			} else {
-				// If left click and no selection, make sure popover is closed
-				tw.popover.Popdown()
+				popover.Popdown()
 			}
 		}
 	})
-	tw.TermInst.Widget.AddController(clickGesture)
+	tab.TermInst.Widget.AddController(clickGesture)
 }

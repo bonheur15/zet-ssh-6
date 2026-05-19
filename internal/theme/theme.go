@@ -184,4 +184,166 @@ popover > contents {
 	font-weight: 500;
 	color: #e0e0e0;
 }
+
+/* Premium Workspace Panel Styling */
+.workspace-header {
+	font-family: inherit;
+	font-size: 11px;
+	font-weight: 700;
+	color: #888888;
+	margin-top: 12px;
+	margin-bottom: 8px;
+	letter-spacing: 1px;
+	text-transform: uppercase;
+}
+
+.workspace-action-btn {
+	background: #181818;
+	border: 1px solid #282828;
+	border-radius: 4px;
+	padding: 4px 8px;
+	margin-bottom: 12px;
+	transition: all 0.2s ease;
+}
+
+.workspace-action-btn:hover {
+	background: #242424;
+	border-color: #444444;
+}
+
+.workspace-action-label {
+	font-size: 10px;
+	color: #d0d0d0;
+	font-weight: 600;
+}
+
+/* Tab Group Header Styling */
+.group-header-row {
+	background: transparent;
+	padding: 4px 2px;
+	margin-top: 6px;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.group-toggle-btn {
+	background: transparent;
+	border: none;
+	padding: 2px 4px;
+}
+
+.group-toggle-label {
+	font-size: 10px;
+	color: #888888;
+}
+
+.group-title-label {
+	font-family: inherit;
+	font-size: 11px;
+	font-weight: 600;
+	color: #e0e0e0;
+	margin-left: 4px;
+}
+
+.group-action-btn {
+	background: transparent;
+	border: none;
+	border-radius: 4px;
+	padding: 2px 6px;
+	margin-left: 2px;
+	transition: background 0.2s ease;
+}
+
+.group-action-btn:hover {
+	background: #202020;
+}
+
+.group-action-label {
+	font-size: 10px;
+	color: #888888;
+}
+
+.group-action-btn:hover .group-action-label {
+	color: #ffffff;
+}
+
+/* Tab Row Styling */
+.tab-row {
+	margin-left: 12px;
+	margin-top: 2px;
+	margin-bottom: 2px;
+	border-radius: 4px;
+	transition: background 0.2s ease;
+}
+
+.tab-row.active {
+	background: #1e293b; /* Premium slate-blue active state color */
+}
+
+.tab-select-btn {
+	background: transparent;
+	border: none;
+	padding: 4px 6px;
+	text-align: left;
+}
+
+.tab-label {
+	font-family: inherit;
+	font-size: 10px;
+	color: #a0a0a0;
+}
+
+.tab-row.active .tab-label {
+	color: #38bdf8; /* modern neon blue glow for active tab text */
+	font-weight: 600;
+}
+
+.tab-action-btn {
+	background: transparent;
+	border: none;
+	border-radius: 3px;
+	padding: 2px 4px;
+	transition: background 0.2s ease;
+}
+
+.tab-action-btn:hover {
+	background: rgba(255, 255, 255, 0.05);
+}
+
+.tab-action-label {
+	font-size: 9px;
+	color: #666666;
+}
+
+.tab-action-btn:hover .tab-action-label {
+	color: #ef4444; /* Close button glows red on hover */
+}
+
+/* Collapsible Section for Past Commands */
+.history-section-header {
+	background: transparent;
+	border: none;
+	padding: 8px 4px;
+	margin-top: 16px;
+	border-top: 1px solid #202020;
+	transition: background 0.2s ease;
+}
+
+.history-section-header:hover {
+	background: rgba(255, 255, 255, 0.01);
+}
+
+.history-header-arrow {
+	font-size: 10px;
+	color: #666666;
+	margin-right: 6px;
+}
+
+.history-header-title {
+	font-family: inherit;
+	font-size: 10px;
+	font-weight: 700;
+	color: #888888;
+	letter-spacing: 0.5px;
+	text-transform: uppercase;
+}
 `

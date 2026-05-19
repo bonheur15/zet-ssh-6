@@ -6,14 +6,27 @@ import (
 	"path/filepath"
 )
 
+type TabConfig struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type GroupConfig struct {
+	ID        string      `json:"id"`
+	Name      string      `json:"name"`
+	Collapsed bool        `json:"collapsed"`
+	Tabs      []TabConfig `json:"tabs"`
+}
+
 type Config struct {
-	FontName         string   `json:"font_name"`
-	FontSize         int      `json:"font_size"`
-	Shell            string   `json:"shell"`
-	CursorBlinkMode  int      `json:"cursor_blink_mode"` // 0 = system, 1 = blink on, 2 = blink off
-	CursorShape      int      `json:"cursor_shape"`      // 0 = block, 1 = i-beam, 2 = underline
-	ScrollbackLines  int      `json:"scrollback_lines"`
-	CommandHistory   []string `json:"command_history"`
+	FontName         string        `json:"font_name"`
+	FontSize         int           `json:"font_size"`
+	Shell            string        `json:"shell"`
+	CursorBlinkMode  int           `json:"cursor_blink_mode"` // 0 = system, 1 = blink on, 2 = blink off
+	CursorShape      int           `json:"cursor_shape"`      // 0 = block, 1 = i-beam, 2 = underline
+	ScrollbackLines  int           `json:"scrollback_lines"`
+	CommandHistory   []string      `json:"command_history"`
+	TabGroups        []GroupConfig `json:"tab_groups"`
 }
 
 func DefaultConfig() *Config {
@@ -25,6 +38,19 @@ func DefaultConfig() *Config {
 		CursorShape:     0, // Block
 		ScrollbackLines: 10000,
 		CommandHistory:  []string{},
+		TabGroups: []GroupConfig{
+			{
+				ID:        "group-general",
+				Name:      "General Workspace",
+				Collapsed: false,
+				Tabs: []TabConfig{
+					{
+						ID:   "tab-1",
+						Name: "Primary Console",
+					},
+				},
+			},
+		},
 	}
 }
 
