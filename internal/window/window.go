@@ -88,6 +88,7 @@ func (tw *TerminalWindow) applyConfigToInstance(inst *terminal.VteTerminalInstan
 
 func (tw *TerminalWindow) setupShortcuts() {
 	keyCtrl := gtk.NewEventControllerKey()
+	keyCtrl.SetPropagationPhase(gtk.PhaseCapture)
 	keyCtrl.ConnectKeyPressed(func(keyval uint, keycode uint, state gdk.ModifierType) bool {
 		isCtrl := (state & gdk.ControlMask) != 0
 		isShift := (state & gdk.ShiftMask) != 0
