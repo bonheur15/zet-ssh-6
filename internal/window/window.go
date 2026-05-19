@@ -114,6 +114,22 @@ func (tw *TerminalWindow) setupShortcuts() {
 					tw.TermInst.Paste()
 				}
 				return true
+			case '+', '=': // Ctrl+Shift++ or Ctrl+Shift+= -> Zoom In
+				tw.Cfg.FontSize++
+				if tw.Cfg.FontSize > 72 {
+					tw.Cfg.FontSize = 72
+				}
+				_ = config.SaveConfig(tw.Cfg)
+				tw.applyConfigToInstance(tw.TermInst)
+				return true
+			case '-', '_': // Ctrl+Shift+- or Ctrl+Shift+_ -> Zoom Out
+				tw.Cfg.FontSize--
+				if tw.Cfg.FontSize < 4 {
+					tw.Cfg.FontSize = 4
+				}
+				_ = config.SaveConfig(tw.Cfg)
+				tw.applyConfigToInstance(tw.TermInst)
+				return true
 			}
 		}
 		return false
