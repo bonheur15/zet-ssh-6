@@ -1,0 +1,15 @@
+# Binaries
+zet-terminal
+hello-gtk4
+
+# Go objects
+*.o
+*.a
+*.so
+
+# IDEs
+.idea/
+.vscode/
+
+# System files
+.DS_Store
