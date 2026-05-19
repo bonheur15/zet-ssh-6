@@ -33,6 +33,10 @@ func NewTerminalWindow(app *gtk.Application, cfg *config.Config) *TerminalWindow
 
 	// Show window
 	win.Show()
+
+	// Apply fonts & theme colors AFTER realization/show to ensure correct DPI and cell metrics
+	tw.applyConfigToInstance(tw.TermInst)
+
 	return tw
 }
 
@@ -46,6 +50,7 @@ func (tw *TerminalWindow) setupUI() {
 
 	// Single terminal instance
 	tw.TermInst = terminal.NewVteTerminal()
+	tw.TermInst.Widget.AddCSSClass("vte-terminal-widget")
 	tw.TermInst.SetScrollbackLines(tw.Cfg.ScrollbackLines)
 	tw.TermInst.SetCursorBlinkMode(tw.Cfg.CursorBlinkMode)
 	tw.TermInst.SetCursorShape(tw.Cfg.CursorShape)
@@ -58,9 +63,6 @@ func (tw *TerminalWindow) setupUI() {
 	tw.Container.Append(tw.TermInst.Widget)
 
 	tw.Win.SetChild(tw.Container)
-
-	// Apply fonts & theme colors
-	tw.applyConfigToInstance(tw.TermInst)
 
 	// Spawn default shell inside PTY
 	tw.TermInst.SpawnShell(tw.Cfg.Shell, "")

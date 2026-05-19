@@ -45,4 +45,8 @@ headerbar label {
 	padding: 4px;
 	margin: 0;
 }
+
+.vte-terminal-widget {
+	font-family: "Hack", "Liberation Mono", "DejaVu Sans Mono", monospace;
+}
 `
