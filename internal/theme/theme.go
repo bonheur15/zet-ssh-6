@@ -27,17 +27,25 @@ window.terminal-window {
 headerbar {
 	background: #181818;
 	border-bottom: 1px solid #262626;
-	min-height: 24px;
-	padding: 0 8px;
-	margin: 0;
-	align-items: center;
-}
-
-headerbar windowhandle {
+	border-top: none;
+	border-left: none;
+	border-right: none;
 	min-height: 24px;
 	padding: 0;
 	margin: 0;
 	align-items: center;
+	outline: none;
+	box-shadow: none;
+}
+
+headerbar windowhandle {
+	min-height: 24px;
+	padding: 0 8px;
+	margin: 0;
+	align-items: center;
+	border: none;
+	outline: none;
+	box-shadow: none;
 }
 
 headerbar button {
