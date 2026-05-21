@@ -426,14 +426,7 @@ func (tw *TerminalWindow) getTabAutoTitle(tabID string, rawTitle string) string 
 
 	if dirPath == "" {
 		if inst, ok := tw.TabInstances[tabID]; ok {
-			uri := inst.TermInst.GetCurrentDirectoryURI()
-			if uri != "" {
-				u := strings.TrimPrefix(uri, "file://")
-				if idx := strings.Index(u, "/"); idx != -1 {
-					u = u[idx:]
-				}
-				dirPath = u
-			}
+			dirPath = inst.TermInst.GetCurrentDirectory()
 		}
 	}
 
@@ -508,15 +501,7 @@ func (tw *TerminalWindow) getActiveTabDir() string {
 	if !ok {
 		return ""
 	}
-	uri := activeTab.TermInst.GetCurrentDirectoryURI()
-	if uri == "" {
-		return ""
-	}
-	u := strings.TrimPrefix(uri, "file://")
-	if idx := strings.Index(u, "/"); idx != -1 {
-		u = u[idx:]
-	}
-	return u
+	return activeTab.TermInst.GetCurrentDirectory()
 }
 
 func (tw *TerminalWindow) getActiveTabGroupID() string {

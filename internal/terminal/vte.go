@@ -32,12 +32,42 @@ static void connect_vte_signals(VteTerminal *terminal) {
 
 static void spawn_shell(VteTerminal *term, const char *shell_path, const char *working_dir) {
 	char *argv[] = {(char*)shell_path, NULL};
+
+	// Build environment: copy parent env and inject VTE_VERSION
+	extern char **environ;
+	int env_count = 0;
+	while (environ[env_count]) env_count++;
+
+	// Allocate space for existing env + VTE_VERSION + TERM + NULL
+	char **child_env = g_new0(char*, env_count + 3);
+	int j = 0;
+	int has_vte_version = 0;
+	int has_term = 0;
+	for (int i = 0; i < env_count; i++) {
+		if (strncmp(environ[i], "VTE_VERSION=", 12) == 0) {
+			has_vte_version = 1;
+		}
+		if (strncmp(environ[i], "TERM=", 5) == 0) {
+			has_term = 1;
+			child_env[j++] = g_strdup("TERM=xterm-256color");
+			continue;
+		}
+		child_env[j++] = g_strdup(environ[i]);
+	}
+	if (!has_vte_version) {
+		child_env[j++] = g_strdup("VTE_VERSION=7600");
+	}
+	if (!has_term) {
+		child_env[j++] = g_strdup("TERM=xterm-256color");
+	}
+	child_env[j] = NULL;
+
 	vte_terminal_spawn_async(
 		term,
 		VTE_PTY_DEFAULT,
 		working_dir,
 		argv,
-		NULL, // inherit environment
+		child_env,
 		G_SPAWN_DEFAULT,
 		NULL, NULL, NULL, // child setup
 		-1, // timeout
@@ -45,6 +75,12 @@ static void spawn_shell(VteTerminal *term, const char *shell_path, const char *w
 		goOnShellSpawned_wrapper, // spawn callback
 		NULL  // user_data
 	);
+
+	// Free the copied environment
+	for (int i = 0; child_env[i]; i++) {
+		g_free(child_env[i]);
+	}
+	g_free(child_env);
 }
 
 static void set_terminal_colors(VteTerminal *terminal, const char *fg_hex, const char *bg_hex, char **palette_hex, int palette_size) {
@@ -125,6 +161,9 @@ static void terminal_paste(VteTerminal *terminal) {
 import "C"
 
 import (
+	"fmt"
+	"os"
+	"strings"
 	"unsafe"
 
 	"github.com/diamondburned/gotk4/pkg/core/glib"
@@ -296,6 +335,30 @@ func (t *VteTerminalInstance) GetWindowTitle() string {
 
 func (t *VteTerminalInstance) GetChildPID() int {
 	return t.childPID
+}
+
+// GetCurrentDirectory returns the shell's current directory.
+// It tries VTE's OSC 7 URI first, then falls back to /proc/<pid>/cwd.
+func (t *VteTerminalInstance) GetCurrentDirectory() string {
+	// Try VTE's OSC 7 reported URI first
+	uri := t.GetCurrentDirectoryURI()
+	if uri != "" {
+		u := strings.TrimPrefix(uri, "file://")
+		if idx := strings.Index(u, "/"); idx != -1 {
+			u = u[idx:]
+		}
+		return u
+	}
+
+	// Fallback: read /proc/<pid>/cwd symlink
+	if t.childPID > 0 {
+		link := fmt.Sprintf("/proc/%d/cwd", t.childPID)
+		if target, err := os.Readlink(link); err == nil {
+			return target
+		}
+	}
+
+	return ""
 }
 
 func ActiveTerminals() map[uintptr]*VteTerminalInstance {
