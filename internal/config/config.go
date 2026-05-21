@@ -31,6 +31,7 @@ type Config struct {
 	UIThemeAccent     string        `json:"ui_theme_accent"`      // "cyan", "purple", "emerald", "amber", "crimson", "steel", "custom"
 	CustomAccentColor string        `json:"custom_accent_color"`  // Hex, default: #38bdf8
 	CustomGlowColor   string        `json:"custom_glow_color"`    // rgba or hex, default: rgba(56, 189, 248, 0.4)
+	UIThemeGlowOpacity float64      `json:"ui_theme_glow_opacity"` // 0.0 to 1.0, default: 0.4
 	TermThemePreset   string        `json:"term_theme_preset"`    // "default", "nord", "gruvbox", "solarized", "monokai", "onehalf", "custom"
 	TermBackground    string        `json:"term_background"`      // Hex, default: #121212
 	TermForeground    string        `json:"term_foreground"`      // Hex, default: #e0e0e0
@@ -62,6 +63,7 @@ func DefaultConfig() *Config {
 		UIThemeAccent:     "cyan",
 		CustomAccentColor: "#38bdf8",
 		CustomGlowColor:   "rgba(56, 189, 248, 0.4)",
+		UIThemeGlowOpacity: 0.4,
 		TermThemePreset:   "default",
 		TermBackground:    "#121212",
 		TermForeground:    "#e0e0e0",
@@ -116,6 +118,10 @@ func LoadConfig() *Config {
 	}
 	if cfg.CustomGlowColor == "" {
 		cfg.CustomGlowColor = "rgba(56, 189, 248, 0.4)"
+		needsSave = true
+	}
+	if cfg.UIThemeGlowOpacity <= 0 {
+		cfg.UIThemeGlowOpacity = 0.4
 		needsSave = true
 	}
 	if cfg.TermThemePreset == "" {

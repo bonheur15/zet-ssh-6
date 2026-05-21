@@ -19,6 +19,8 @@ install: build
 	@mkdir -p $(LOCAL_BIN)
 	cp -f $(BIN_DIR)/$(BINARY_NAME) $(LOCAL_BIN)/$(BINARY_NAME)
 	@chmod +x $(LOCAL_BIN)/$(BINARY_NAME)
+	@echo "Creating 'zet' symlink..."
+	ln -sf $(LOCAL_BIN)/$(BINARY_NAME) $(LOCAL_BIN)/zet
 
 	@echo "Installing application launcher..."
 	@mkdir -p $(DESKTOP_DIR)
@@ -53,6 +55,7 @@ install: build
 uninstall:
 	@echo "Uninstalling $(BINARY_NAME)..."
 	rm -f $(LOCAL_BIN)/$(BINARY_NAME)
+	rm -f $(LOCAL_BIN)/zet
 	rm -f $(DESKTOP_DIR)/$(BINARY_NAME).desktop
 	rm -f $(KDE5_SERVICE_DIR)/$(BINARY_NAME)-action.desktop
 	rm -f $(KDE6_SERVICE_DIR)/$(BINARY_NAME)-action.desktop

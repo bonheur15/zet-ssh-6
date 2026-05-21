@@ -44,6 +44,9 @@ static void spawn_shell(VteTerminal *term, const char *shell_path, const char *w
 	int has_vte_version = 0;
 	int has_term = 0;
 	for (int i = 0; i < env_count; i++) {
+		if (strncmp(environ[i], "ZET_DAEMON=", 11) == 0) {
+			continue;
+		}
 		if (strncmp(environ[i], "VTE_VERSION=", 12) == 0) {
 			has_vte_version = 1;
 		}
@@ -338,9 +341,17 @@ func (t *VteTerminalInstance) GetChildPID() int {
 }
 
 // GetCurrentDirectory returns the shell's current directory.
-// It tries VTE's OSC 7 URI first, then falls back to /proc/<pid>/cwd.
+// It prioritizes /proc/<pid>/cwd for local accuracy, then falls back to VTE's OSC 7 reported URI.
 func (t *VteTerminalInstance) GetCurrentDirectory() string {
-	// Try VTE's OSC 7 reported URI first
+	// Try /proc/<pid>/cwd symlink first
+	if t.childPID > 0 {
+		link := fmt.Sprintf("/proc/%d/cwd", t.childPID)
+		if target, err := os.Readlink(link); err == nil {
+			return target
+		}
+	}
+
+	// Fallback: Try VTE's OSC 7 reported URI
 	uri := t.GetCurrentDirectoryURI()
 	if uri != "" {
 		u := strings.TrimPrefix(uri, "file://")
@@ -348,14 +359,6 @@ func (t *VteTerminalInstance) GetCurrentDirectory() string {
 			u = u[idx:]
 		}
 		return u
-	}
-
-	// Fallback: read /proc/<pid>/cwd symlink
-	if t.childPID > 0 {
-		link := fmt.Sprintf("/proc/%d/cwd", t.childPID)
-		if target, err := os.Readlink(link); err == nil {
-			return target
-		}
 	}
 
 	return ""
