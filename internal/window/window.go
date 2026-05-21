@@ -79,7 +79,9 @@ func (tw *TerminalWindow) setupUI() {
 	btnSidebar := gtk.NewButton()
 	btnSidebar.AddCSSClass("header-btn")
 	btnSidebar.SetTooltipText("Toggle Sidebar (Ctrl+B)")
-	btnSidebar.SetChild(gtk.NewImageFromIconName("view-sidebar-symbolic"))
+	imgSidebar := gtk.NewImageFromIconName("view-sidebar-symbolic")
+	imgSidebar.SetPixelSize(14)
+	btnSidebar.SetChild(imgSidebar)
 	btnSidebar.ConnectClicked(func() {
 		tw.SidebarPinned = !tw.SidebarPinned
 		tw.Revealer.SetRevealChild(tw.SidebarPinned)
@@ -93,7 +95,9 @@ func (tw *TerminalWindow) setupUI() {
 	btnNewTab := gtk.NewButton()
 	btnNewTab.AddCSSClass("header-btn")
 	btnNewTab.SetTooltipText("Create New Tab")
-	btnNewTab.SetChild(gtk.NewImageFromIconName("tab-new-symbolic"))
+	imgNewTab := gtk.NewImageFromIconName("tab-new-symbolic")
+	imgNewTab.SetPixelSize(14)
+	btnNewTab.SetChild(imgNewTab)
 	btnNewTab.ConnectClicked(func() {
 		if len(tw.Cfg.TabGroups) > 0 {
 			tw.createTabInGroup(tw.Cfg.TabGroups[0].ID)
@@ -105,7 +109,9 @@ func (tw *TerminalWindow) setupUI() {
 	btnSettings := gtk.NewButton()
 	btnSettings.AddCSSClass("header-btn")
 	btnSettings.SetTooltipText("Settings")
-	btnSettings.SetChild(gtk.NewImageFromIconName("preferences-system-symbolic"))
+	imgSettings := gtk.NewImageFromIconName("preferences-system-symbolic")
+	imgSettings.SetPixelSize(14)
+	btnSettings.SetChild(imgSettings)
 	btnSettings.ConnectClicked(func() {
 		tw.openSettingsDialog()
 	})

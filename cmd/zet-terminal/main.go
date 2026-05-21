@@ -30,7 +30,7 @@ func main() {
 		gtk.StyleContextAddProviderForDisplay(
 			gdk.DisplayGetDefault(),
 			cssProvider,
-			gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
+			gtk.STYLE_PROVIDER_PRIORITY_USER,
 		)
 
 		// Create a new terminal window

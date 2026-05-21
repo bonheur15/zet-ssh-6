@@ -30,45 +30,53 @@ headerbar {
 	border-top: none;
 	border-left: none;
 	border-right: none;
-	min-height: 0px !important;
-	height: 24px !important;
-	padding: 0px 6px !important;
-	margin: 0 !important;
+	min-height: 28px;
+	padding: 0px 6px;
+	margin: 0;
 	outline: none;
 	box-shadow: none;
 }
 
 headerbar windowhandle,
+headerbar windowhandle > box,
 headerbar box {
-	min-height: 0px !important;
-	padding: 0 !important;
-	margin: 0 !important;
+	min-height: 28px;
+	padding: 0;
+	margin: 0;
 }
 
 headerbar windowcontrols {
-	min-height: 0px !important;
-	min-width: 0px !important;
-	padding: 0 !important;
-	margin: 0 !important;
+	min-height: 28px;
+	min-width: 0px;
+	padding: 0;
+	margin: 0;
 }
 
 headerbar button,
-headerbar button > contents {
-	padding: 0px !important;
-	margin: 0px 1px !important;
-	min-height: 0px !important;
-	min-width: 0px !important;
+headerbar button > contents,
+headerbar windowcontrols button,
+headerbar windowcontrols button > contents {
+	padding: 0px;
+	margin: 0px 2px;
+	min-height: 22px;
+	min-width: 22px;
 	background: transparent;
-	border: none !important;
-	box-shadow: none !important;
+	border: none;
+	box-shadow: none;
 }
 
-headerbar image {
-	-gtk-icon-size: 13px !important;
+headerbar image,
+headerbar button image,
+headerbar windowcontrols button image {
+	-gtk-icon-size: 14px;
+	min-width: 14px;
+	min-height: 14px;
+	padding: 0;
+	margin: 0;
 }
 
 headerbar .header-btn {
-	border-radius: 3px;
+	border-radius: 4px;
 	transition: background-color 0.2s ease;
 }
 
@@ -78,12 +86,11 @@ headerbar .header-btn:hover {
 
 headerbar .title-label {
 	font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-	font-size: 11px !important;
+	font-size: 13px;
 	font-weight: 700;
-	color: #94a3b8;
-	padding: 0px !important;
-	margin: 0 !important;
-	align-self: center;
+	color: #cbd5e1;
+	padding: 0px;
+	margin: 0;
 }
 
 /* ─── Settings Dialog Styles ─── */
@@ -231,7 +238,7 @@ window.settings-dialog {
 }
 
 .sidebar-arrow-btn:hover {
-	opacity: 1.0 !important;
+	opacity: 1.0;
 	background: rgba(56, 189, 248, 0.1);
 	border-radius: 4px;
 }
@@ -244,11 +251,11 @@ window.settings-dialog {
 
 /* Sleek Context Menu Popover */
 popover > contents {
-	background: #16181c !important;
-	border: 1px solid rgba(255, 255, 255, 0.08) !important;
-	border-radius: 8px !important;
-	padding: 4px !important;
-	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6) !important;
+	background: #16181c;
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	border-radius: 8px;
+	padding: 4px;
+	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
 }
 
 .menu-item-btn {
@@ -363,7 +370,7 @@ popover > contents {
 }
 
 .group-action-btn:hover {
-	opacity: 1.0 !important;
+	opacity: 1.0;
 	background: rgba(255, 255, 255, 0.08);
 }
 
@@ -399,7 +406,6 @@ popover > contents {
 	background: transparent;
 	border: none;
 	padding: 6px 8px;
-	text-align: left;
 }
 
 .tab-label {
@@ -433,7 +439,7 @@ popover > contents {
 }
 
 .tab-action-btn:hover {
-	opacity: 1.0 !important;
+	opacity: 1.0;
 	background: rgba(239, 68, 68, 0.15);
 }
 
@@ -447,7 +453,7 @@ popover > contents {
 }
 
 .tab-action-btn:hover image {
-	color: #ef4444 !important;
+	color: #ef4444;
 }
 
 /* Collapsible Section for Past Commands */
@@ -500,7 +506,11 @@ scrollbar.horizontal {
 	min-height: 6px;
 }
 scrollbar button {
-	display: none;
+	min-width: 0px;
+	min-height: 0px;
+	opacity: 0;
+	padding: 0;
+	margin: 0;
 }
 scrollbar slider {
 	background-color: rgba(255, 255, 255, 0.08);
