@@ -30,50 +30,45 @@ headerbar {
 	border-top: none;
 	border-left: none;
 	border-right: none;
-	min-height: 18px;
-	padding: 0px 4px;
-	margin: 0;
+	min-height: 0px !important;
+	height: 24px !important;
+	padding: 0px 6px !important;
+	margin: 0 !important;
 	outline: none;
 	box-shadow: none;
 }
 
-headerbar windowhandle {
-	min-height: 18px;
-	padding: 0;
-	margin: 0;
-}
-
+headerbar windowhandle,
 headerbar box {
-	padding: 0;
-	margin: 0;
+	min-height: 0px !important;
+	padding: 0 !important;
+	margin: 0 !important;
 }
 
 headerbar windowcontrols {
-	min-height: 16px;
-	padding: 0;
-	margin: 0;
+	min-height: 0px !important;
+	min-width: 0px !important;
+	padding: 0 !important;
+	margin: 0 !important;
 }
 
-headerbar windowcontrols button {
-	padding: 1px;
-	margin: 0 1px;
-	min-height: 12px;
-	min-width: 12px;
+headerbar button,
+headerbar button > contents {
+	padding: 0px !important;
+	margin: 0px 1px !important;
+	min-height: 0px !important;
+	min-width: 0px !important;
+	background: transparent;
+	border: none !important;
+	box-shadow: none !important;
 }
 
 headerbar image {
-	-gtk-icon-size: 11px;
+	-gtk-icon-size: 13px !important;
 }
 
 headerbar .header-btn {
-	padding: 1px;
-	margin: 0 2px;
-	min-height: 12px;
-	min-width: 12px;
-	align-self: center;
 	border-radius: 3px;
-	background: transparent;
-	border: none;
 	transition: background-color 0.2s ease;
 }
 
@@ -83,11 +78,11 @@ headerbar .header-btn:hover {
 
 headerbar .title-label {
 	font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-	font-size: 9px;
+	font-size: 11px !important;
 	font-weight: 700;
 	color: #94a3b8;
-	padding: 0;
-	margin: 0;
+	padding: 0px !important;
+	margin: 0 !important;
 	align-self: center;
 }
 
@@ -201,13 +196,13 @@ window.settings-dialog {
 }
 
 .sidebar-trigger {
-	background: transparent;
+	background-color: rgba(255, 255, 255, 0.001);
 	border-right: 1px solid rgba(255, 255, 255, 0.02);
 	transition: background-color 0.2s ease;
 }
 
 .sidebar-trigger:hover {
-	background: rgba(255, 255, 255, 0.01);
+	background-color: rgba(255, 255, 255, 0.04);
 }
 
 .sidebar-row {

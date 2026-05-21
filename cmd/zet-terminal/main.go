@@ -18,6 +18,12 @@ func main() {
 	cfg := config.LoadConfig()
 
 	app.ConnectActivate(func() {
+		// Prefer dark theme for window decorations
+		settings := gtk.SettingsGetDefault()
+		if settings != nil {
+			settings.SetObjectProperty("gtk-application-prefer-dark-theme", true)
+		}
+
 		// Load Theme CSS
 		cssProvider := gtk.NewCSSProvider()
 		cssProvider.LoadFromData(theme.TerminalCSS)
