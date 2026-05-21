@@ -212,7 +212,7 @@ func (tw *TerminalWindow) setupShortcuts() {
 			switch keyval {
 			case 'N', 'n': // Ctrl+Shift+N -> New Window
 				dir := tw.getActiveTabDir()
-				groupID := tw.getActiveTabGroupID()
+				groupID := tw.GetActiveTabGroupID()
 				tabID := tw.CreateNewTabInGroup(groupID, dir, nil)
 				NewTerminalWindow(tw.App, tw.Cfg, tabID, dir)
 				return true
@@ -264,4 +264,22 @@ func (tw *TerminalWindow) setupShortcuts() {
 		return false
 	})
 	tw.Win.AddController(keyCtrl)
+}
+
+func ActiveWindowsCount() int {
+	return len(activeWindows)
+}
+
+func FocusActiveWindow() {
+	for tw := range activeWindows {
+		tw.Win.Present()
+		break
+	}
+}
+
+func GetFirstActiveWindow() *TerminalWindow {
+	for tw := range activeWindows {
+		return tw
+	}
+	return nil
 }
