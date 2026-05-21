@@ -15,3 +15,6 @@ hello-gtk4
 .DS_Store
 
 !cmd/zet-terminal
+
+main
+.antigravitycli

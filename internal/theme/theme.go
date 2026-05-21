@@ -18,57 +18,138 @@ var DefaultPalette = &ColorPalette{
 }
 
 const TerminalCSS = `
-/* ─── Minimalistic Solid Dark Terminal Style ─── */
+/* ─── Modern Sleek Dark Terminal Theme ─── */
 window.terminal-window {
-	background: #121212;
-	color: #e0e0e0;
+	background: #0e1012;
+	color: #f1f5f9;
 }
 
 headerbar {
-	background: #181818;
-	border-bottom: 1px solid #262626;
+	background: #111317;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 	border-top: none;
 	border-left: none;
 	border-right: none;
-	min-height: 24px;
-	padding: 0;
+	min-height: 18px;
+	padding: 0px 4px;
 	margin: 0;
-	align-items: center;
 	outline: none;
 	box-shadow: none;
 }
 
 headerbar windowhandle {
-	min-height: 24px;
-	padding: 0 8px;
+	min-height: 18px;
+	padding: 0;
 	margin: 0;
-	align-items: center;
-	border: none;
-	outline: none;
-	box-shadow: none;
 }
 
-headerbar button {
+headerbar box {
 	padding: 0;
+	margin: 0;
+}
+
+headerbar windowcontrols {
+	min-height: 16px;
+	padding: 0;
+	margin: 0;
+}
+
+headerbar windowcontrols button {
+	padding: 1px;
+	margin: 0 1px;
+	min-height: 12px;
+	min-width: 12px;
+}
+
+headerbar image {
+	-gtk-icon-size: 11px;
+}
+
+headerbar .header-btn {
+	padding: 1px;
 	margin: 0 2px;
-	min-height: 18px;
-	min-width: 18px;
+	min-height: 12px;
+	min-width: 12px;
+	align-self: center;
+	border-radius: 3px;
+	background: transparent;
+	border: none;
+	transition: background-color 0.2s ease;
+}
+
+headerbar .header-btn:hover {
+	background: rgba(255, 255, 255, 0.08);
+}
+
+headerbar .title-label {
+	font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	font-size: 9px;
+	font-weight: 700;
+	color: #94a3b8;
+	padding: 0;
+	margin: 0;
 	align-self: center;
 }
 
-headerbar label {
-	font-family: inherit;
+/* ─── Settings Dialog Styles ─── */
+window.settings-dialog {
+	background: #111317;
+	color: #f1f5f9;
+}
+
+.settings-box {
+	padding: 16px 20px;
+}
+
+.settings-section-title {
+	font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+	font-size: 10px;
+	font-weight: 800;
+	color: #38bdf8;
+	margin-top: 8px;
+	margin-bottom: 12px;
+	letter-spacing: 1px;
+	text-transform: uppercase;
+}
+
+.settings-row {
+	margin-bottom: 10px;
+}
+
+.settings-label {
+	font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 	font-size: 11px;
 	font-weight: 600;
-	color: #e0e0e0;
-	padding: 0;
-	margin: 0;
-	align-self: center;
+	color: #cbd5e1;
 }
+
+.settings-entry {
+	background: rgba(255, 255, 255, 0.04);
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 6px;
+	color: #f1f5f9;
+	padding: 5px 8px;
+	font-size: 11px;
+}
+
+.settings-entry:focus {
+	border-color: #38bdf8;
+	outline: none;
+}
+
+.settings-dropdown {
+	background: rgba(255, 255, 255, 0.04);
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 6px;
+	color: #f1f5f9;
+	padding: 4px;
+	font-size: 11px;
+}
+
 
 /* ─── VTE Terminal Widget Container ─── */
 .terminal-container {
-	background: #121212;
+	background: #0e1012;
 	border: none;
 	padding: 4px;
 	margin: 0;
@@ -80,168 +161,196 @@ headerbar label {
 }
 
 .sidebar-panel {
-	background: #151515;
-	border-right: 1px solid #242424;
-	padding: 12px 8px;
-	box-shadow: 4px 0 12px rgba(0, 0, 0, 0.4);
+	background-image: linear-gradient(to bottom, #16181c, #0e1012);
+	border-right: 1px solid rgba(255, 255, 255, 0.05);
+	padding: 14px 10px;
+	box-shadow: 4px 0 16px rgba(0, 0, 0, 0.5);
 }
 
 .sidebar-title {
-	font-family: inherit;
-	font-size: 11px;
-	font-weight: 700;
-	color: #888888;
+	font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	font-size: 10px;
+	font-weight: 800;
+	color: #64748b;
 	margin-bottom: 12px;
-	letter-spacing: 1px;
+	letter-spacing: 1.2px;
 	text-transform: uppercase;
 }
 
 .sidebar-btn {
 	background: transparent;
 	border: none;
-	border-radius: 4px;
-	padding: 6px 8px;
-	transition: background 0.2s ease;
+	border-radius: 6px;
+	padding: 6px 10px;
+	transition: background-color 0.2s ease;
 }
 
 .sidebar-btn:hover {
-	background: #202020;
+	background: rgba(255, 255, 255, 0.05);
 }
 
 .sidebar-btn-label {
-	font-family: "Hack", monospace;
+	font-family: "JetBrains Mono", "Fira Code", "Hack", monospace;
 	font-size: 10px;
-	color: #d0d0d0;
+	color: #94a3b8;
+	transition: color 0.2s ease;
 }
 
-.sidebar-btn:hover .sidebar-btn-label {
-	color: #ffffff;
+.sidebar-row:hover .sidebar-btn-label {
+	color: #f1f5f9;
 }
 
 .sidebar-trigger {
 	background: transparent;
-	border-right: 1px solid #202020;
-	transition: background 0.2s ease;
+	border-right: 1px solid rgba(255, 255, 255, 0.02);
+	transition: background-color 0.2s ease;
 }
 
 .sidebar-trigger:hover {
-	background: rgba(255, 255, 255, 0.02);
+	background: rgba(255, 255, 255, 0.01);
 }
 
 .sidebar-row {
-	margin-bottom: 4px;
-	border: none;
-	background: transparent;
+	margin: 3px 4px;
+	border-radius: 6px;
+	background: rgba(255, 255, 255, 0.02);
+	border: 1px solid rgba(255, 255, 255, 0.04);
+	transition: all 0.2s ease;
+}
+
+.sidebar-row:hover {
+	background: rgba(255, 255, 255, 0.05);
+	border-color: rgba(255, 255, 255, 0.08);
 }
 
 .sidebar-arrow-btn {
 	background: transparent;
 	border: none;
-	border-radius: 4px;
-	padding: 6px;
-	margin-left: 2px;
-	transition: background 0.2s ease;
+	padding: 6px 8px;
+	opacity: 0;
+	transition: opacity 0.2s ease, background-color 0.2s ease;
+}
+
+.sidebar-row:hover .sidebar-arrow-btn {
+	opacity: 0.6;
 }
 
 .sidebar-arrow-btn:hover {
-	background: #252525;
+	opacity: 1.0 !important;
+	background: rgba(56, 189, 248, 0.1);
+	border-radius: 4px;
 }
 
 .sidebar-arrow-label {
 	font-size: 11px;
-	color: #888888;
-}
-
-.sidebar-arrow-btn:hover .sidebar-arrow-label {
 	color: #38bdf8;
+	font-weight: 700;
 }
 
 /* Sleek Context Menu Popover */
 popover > contents {
-	background: #181818 !important;
-	border: 1px solid #282828 !important;
-	border-radius: 6px !important;
+	background: #16181c !important;
+	border: 1px solid rgba(255, 255, 255, 0.08) !important;
+	border-radius: 8px !important;
 	padding: 4px !important;
-	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6) !important;
 }
 
 .menu-item-btn {
 	background: transparent;
 	border: none;
-	border-radius: 4px;
+	border-radius: 6px;
 	padding: 6px 12px;
 	min-width: 100px;
-	transition: background 0.2s ease;
+	transition: background-color 0.2s ease;
 }
 
 .menu-item-btn:hover {
-	background: #242424;
+	background: rgba(255, 255, 255, 0.06);
 }
 
 .menu-item-label {
-	font-family: inherit;
+	font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 	font-size: 11px;
-	font-weight: 500;
-	color: #e0e0e0;
+	font-weight: 600;
+	color: #cbd5e1;
 }
 
 /* Premium Workspace Panel Styling */
 .workspace-header {
-	font-family: inherit;
-	font-size: 11px;
-	font-weight: 700;
-	color: #888888;
-	margin-top: 12px;
-	margin-bottom: 8px;
-	letter-spacing: 1px;
+	font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	font-size: 10px;
+	font-weight: 800;
+	color: #64748b;
+	margin-top: 14px;
+	margin-bottom: 10px;
+	letter-spacing: 1.2px;
 	text-transform: uppercase;
 }
 
 .workspace-action-btn {
-	background: #181818;
-	border: 1px solid #282828;
-	border-radius: 4px;
-	padding: 4px 8px;
-	margin-bottom: 12px;
-	transition: all 0.2s ease;
+	background: rgba(56, 189, 248, 0.08);
+	border: 1px solid rgba(56, 189, 248, 0.15);
+	border-radius: 6px;
+	padding: 6px 12px;
+	margin-bottom: 14px;
+	transition: all 0.2s ease-in-out;
 }
 
 .workspace-action-btn:hover {
-	background: #242424;
-	border-color: #444444;
+	background: rgba(56, 189, 248, 0.16);
+	border-color: rgba(56, 189, 248, 0.35);
+	box-shadow: 0 2px 8px rgba(56, 189, 248, 0.15);
 }
 
 .workspace-action-label {
-	font-size: 10px;
-	color: #d0d0d0;
-	font-weight: 600;
+	font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	font-size: 11px;
+	color: #38bdf8;
+	font-weight: 700;
+	letter-spacing: 0.5px;
 }
 
 /* Tab Group Header Styling */
 .group-header-row {
 	background: transparent;
-	padding: 4px 2px;
-	margin-top: 6px;
+	padding: 6px 4px;
+	margin-top: 8px;
 	border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+	border-radius: 4px;
+	transition: background-color 0.2s ease;
+}
+
+.group-header-row:hover {
+	background: rgba(255, 255, 255, 0.02);
 }
 
 .group-toggle-btn {
 	background: transparent;
 	border: none;
-	padding: 2px 4px;
+	padding: 2px;
 }
 
 .group-toggle-label {
 	font-size: 10px;
-	color: #888888;
+	color: #64748b;
+	transition: color 0.2s ease;
+}
+
+.group-header-row:hover .group-toggle-label {
+	color: #94a3b8;
 }
 
 .group-title-label {
-	font-family: inherit;
+	font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 	font-size: 11px;
 	font-weight: 600;
-	color: #e0e0e0;
-	margin-left: 4px;
+	color: #cbd5e1;
+	margin-left: 6px;
+}
+
+.group-header-row:hover .group-title-label {
+	color: #f1f5f9;
 }
 
 .group-action-btn {
@@ -250,15 +359,21 @@ popover > contents {
 	border-radius: 4px;
 	padding: 4px 6px;
 	margin-left: 2px;
-	transition: background 0.2s ease;
+	opacity: 0;
+	transition: opacity 0.2s ease, background-color 0.2s ease;
+}
+
+.group-header-row:hover .group-action-btn {
+	opacity: 0.5;
 }
 
 .group-action-btn:hover {
-	background: #202020;
+	opacity: 1.0 !important;
+	background: rgba(255, 255, 255, 0.08);
 }
 
 .group-action-btn image {
-	color: #777777;
+	color: #94a3b8;
 }
 
 .group-action-btn:hover image {
@@ -267,82 +382,153 @@ popover > contents {
 
 /* Tab Row Styling */
 .tab-row {
-	margin-left: 12px;
-	margin-top: 2px;
-	margin-bottom: 2px;
+	margin-left: 8px;
+	margin-top: 3px;
+	margin-bottom: 3px;
 	border-radius: 4px;
-	transition: background 0.2s ease;
+	background: transparent;
+	transition: background-color 0.2s ease;
+}
+
+.tab-row:hover:not(.active) {
+	background: rgba(255, 255, 255, 0.03);
 }
 
 .tab-row.active {
-	background: #1e293b; /* Premium slate-blue active state color */
+	background: linear-gradient(to right, rgba(56, 189, 248, 0.15), rgba(56, 189, 248, 0.02));
+	border-left: 3px solid #38bdf8;
+	border-radius: 0 4px 4px 0;
 }
 
 .tab-select-btn {
 	background: transparent;
 	border: none;
-	padding: 4px 6px;
+	padding: 6px 8px;
 	text-align: left;
 }
 
 .tab-label {
-	font-family: inherit;
-	font-size: 10px;
-	color: #a0a0a0;
+	font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	font-size: 11px;
+	color: #94a3b8;
+	transition: color 0.2s ease;
+}
+
+.tab-row:hover .tab-label {
+	color: #cbd5e1;
 }
 
 .tab-row.active .tab-label {
-	color: #38bdf8; /* modern neon blue glow for active tab text */
-	font-weight: 600;
+	color: #38bdf8;
+	font-weight: 700;
 }
 
 .tab-action-btn {
 	background: transparent;
 	border: none;
-	border-radius: 3px;
-	padding: 4px 6px;
-	margin-left: 4px;
-	transition: background 0.2s ease;
+	border-radius: 4px;
+	padding: 4px;
+	margin-right: 4px;
+	opacity: 0;
+	transition: opacity 0.2s ease, background-color 0.2s ease;
+}
+
+.tab-row:hover .tab-action-btn {
+	opacity: 0.5;
 }
 
 .tab-action-btn:hover {
-	background: rgba(255, 255, 255, 0.05);
+	opacity: 1.0 !important;
+	background: rgba(239, 68, 68, 0.15);
 }
 
 .tab-action-btn image {
-	color: #666666;
+	color: #64748b;
+	transition: color 0.2s ease;
+}
+
+.tab-row:hover .tab-action-btn image {
+	color: #94a3b8;
 }
 
 .tab-action-btn:hover image {
-	color: #ef4444; /* Close button glows red on hover */
+	color: #ef4444 !important;
 }
 
 /* Collapsible Section for Past Commands */
 .history-section-header {
 	background: transparent;
 	border: none;
-	padding: 8px 4px;
-	margin-top: 16px;
-	border-top: 1px solid #202020;
-	transition: background 0.2s ease;
+	padding: 10px 4px;
+	margin-top: 20px;
+	border-top: 1px solid rgba(255, 255, 255, 0.05);
+	transition: background-color 0.2s ease;
 }
 
 .history-section-header:hover {
-	background: rgba(255, 255, 255, 0.01);
+	background: rgba(255, 255, 255, 0.02);
 }
 
 .history-header-arrow {
-	font-size: 10px;
-	color: #666666;
-	margin-right: 6px;
+	font-size: 9px;
+	color: #64748b;
+	margin-right: 8px;
 }
 
 .history-header-title {
-	font-family: inherit;
+	font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 	font-size: 10px;
-	font-weight: 700;
-	color: #888888;
-	letter-spacing: 0.5px;
+	font-weight: 800;
+	color: #64748b;
+	letter-spacing: 1.2px;
 	text-transform: uppercase;
 }
+
+.history-section-header:hover .history-header-title {
+	color: #94a3b8;
+}
+
+.history-section-header:hover .history-header-arrow {
+	color: #94a3b8;
+}
+
+/* Custom Scrollbar Styles for modern GTK4 */
+scrollbar {
+	background-color: transparent;
+	background-image: none;
+	border: none;
+}
+scrollbar.vertical {
+	min-width: 6px;
+}
+scrollbar.horizontal {
+	min-height: 6px;
+}
+scrollbar button {
+	display: none;
+}
+scrollbar slider {
+	background-color: rgba(255, 255, 255, 0.08);
+	border-radius: 4px;
+	border: none;
+	min-width: 6px;
+	min-height: 6px;
+	margin: 0;
+	transition: background-color 0.2s ease;
+}
+scrollbar slider:hover {
+	background-color: rgba(56, 189, 248, 0.4);
+}
+
+/* Styled sidebar popover text input fields */
+.sidebar-entry {
+	background: rgba(255, 255, 255, 0.04);
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 6px;
+	color: #f1f5f9;
+	padding: 6px 10px;
+	margin-bottom: 8px;
+	transition: all 0.2s ease;
+}
 `
+
