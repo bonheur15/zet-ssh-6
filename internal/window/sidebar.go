@@ -460,6 +460,9 @@ func (tw *TerminalWindow) renderWorkspace() {
 				if inst, ok := tw.TabInstances[tabConfig.ID]; ok && inst.Name != "" {
 					displayName = inst.Name
 				}
+				if tw.isTabPinned(tabConfig.ID) {
+					displayName = "📌 " + displayName
+				}
 
 				lblTab := gtk.NewLabel(displayName)
 				lblTab.AddCSSClass("tab-label")
@@ -471,6 +474,24 @@ func (tw *TerminalWindow) renderWorkspace() {
 					tw.ActivateTab(tabConfig.ID)
 				})
 				tabRow.Append(btnSelectTab)
+
+				// Pin tab button
+				btnPinTab := gtk.NewButton()
+				btnPinTab.AddCSSClass("tab-action-btn")
+				isPinned := tw.isTabPinned(tabConfig.ID)
+				if isPinned {
+					btnPinTab.SetTooltipText("Unpin tab")
+					imgPinTab := gtk.NewImageFromIconName("bookmark-symbolic")
+					btnPinTab.SetChild(imgPinTab)
+				} else {
+					btnPinTab.SetTooltipText("Pin tab")
+					imgPinPin := gtk.NewImageFromIconName("bookmark-new-symbolic")
+					btnPinTab.SetChild(imgPinPin)
+				}
+				btnPinTab.ConnectClicked(func() {
+					tw.toggleTabPinned(tabConfig.ID)
+				})
+				tabRow.Append(btnPinTab)
 
 				// Rename tab button
 				btnRenameTab := gtk.NewButton()

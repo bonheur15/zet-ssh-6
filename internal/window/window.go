@@ -35,9 +35,44 @@ type TerminalWindow struct {
 }
 
 var (
-	activeWindows     = make(map[*TerminalWindow]bool)
-	GlobalCSSProvider *gtk.CSSProvider
+	activeWindows        = make(map[*TerminalWindow]bool)
+	GlobalCSSProvider    *gtk.CSSProvider
+	backgroundPinnedTabs = make(map[string]*TabInstance)
+	appIsHeld            bool
 )
+
+func PutBackgroundPinnedTab(id string, tab *TabInstance) {
+	backgroundPinnedTabs[id] = tab
+}
+
+func GetBackgroundPinnedTab(id string) (*TabInstance, bool) {
+	tab, exists := backgroundPinnedTabs[id]
+	if exists {
+		delete(backgroundPinnedTabs, id)
+		return tab, true
+	}
+	return nil, false
+}
+
+func UpdateAppHoldStatus(app *gtk.Application, cfg *config.Config) {
+	hasPinned := false
+	for _, group := range cfg.TabGroups {
+		for _, tab := range group.Tabs {
+			if tab.Pinned {
+				hasPinned = true
+				break
+			}
+		}
+	}
+
+	if hasPinned && !appIsHeld {
+		app.Hold()
+		appIsHeld = true
+	} else if !hasPinned && appIsHeld {
+		app.Release()
+		appIsHeld = false
+	}
+}
 
 func InitGlobalCSS(cfg *config.Config) {
 	GlobalCSSProvider = gtk.NewCSSProvider()
@@ -64,9 +99,43 @@ func NewTerminalWindow(app *gtk.Application, cfg *config.Config, initialActiveTa
 	}
 
 	activeWindows[tw] = true
+	win.ConnectCloseRequest(func() bool {
+		isLastWindow := len(activeWindows) == 1
+
+		for id, tab := range tw.TabInstances {
+			pinned := tw.isTabPinned(id)
+			if pinned && isLastWindow {
+				tw.Stack.Remove(tab.TermInst.Widget)
+				PutBackgroundPinnedTab(id, tab)
+
+				// Re-bind callbacks to be safe in background
+				tab.TermInst.OnChildExited(func(status int) {
+					tab.TermInst.Destroy()
+					delete(backgroundPinnedTabs, id)
+					tw.removeTabFromConfig(id)
+					UpdateAppHoldStatus(tw.App, tw.Cfg)
+				})
+				tab.TermInst.OnWindowTitleChanged(nil)
+			} else {
+				tab.TermInst.Destroy()
+				tw.Stack.Remove(tab.TermInst.Widget)
+			}
+		}
+		tw.TabInstances = make(map[string]*TabInstance)
+		
+		delete(activeWindows, tw)
+		UpdateAppHoldStatus(tw.App, tw.Cfg)
+
+		win.Destroy()
+		return true
+	})
+
 	win.ConnectDestroy(func() {
 		delete(activeWindows, tw)
+		UpdateAppHoldStatus(tw.App, tw.Cfg)
 	})
+
+	UpdateAppHoldStatus(app, cfg)
 
 	// If no initial active tab ID is provided, but a directory is provided,
 	// resolve the first tab to be the target for the directory.
@@ -176,11 +245,15 @@ func (tw *TerminalWindow) setupUI(initialActiveTabID, initialActiveTabDir string
 	hasTabsLoaded := false
 	for _, group := range tw.Cfg.TabGroups {
 		for _, tab := range group.Tabs {
-			dir := ""
-			if tab.ID == initialActiveTabID {
-				dir = initialActiveTabDir
+			if bgTab, exists := GetBackgroundPinnedTab(tab.ID); exists {
+				tw.RestoreBackgroundTab(bgTab, group.ID)
+			} else {
+				dir := ""
+				if tab.ID == initialActiveTabID {
+					dir = initialActiveTabDir
+				}
+				tw.CreateTab(tab.ID, tab.Name, group.ID, dir, false)
 			}
-			tw.CreateTab(tab.ID, tab.Name, group.ID, dir, false)
 			hasTabsLoaded = true
 		}
 	}

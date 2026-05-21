@@ -4,12 +4,14 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type TabConfig struct {
 	ID         string `json:"id"`
 	Name       string `json:"name"`
 	CustomName bool   `json:"custom_name"`
+	Pinned     bool   `json:"pinned"`
 }
 
 type GroupConfig struct {
@@ -138,6 +140,11 @@ func LoadConfig() *Config {
 	
 	// Ensure defaults for new fields
 	needsSave := false
+	if data, err := os.ReadFile(path); err == nil {
+		if !strings.Contains(string(data), "keybindings") {
+			needsSave = true
+		}
+	}
 	if cfg.UIThemeAccent == "" {
 		cfg.UIThemeAccent = "cyan"
 		needsSave = true

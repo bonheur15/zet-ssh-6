@@ -651,3 +651,67 @@ func (tw *TerminalWindow) CreateNewTabInGroup(groupID string, workingDir string,
 
 	return tabID
 }
+
+func (tw *TerminalWindow) isTabPinned(tabID string) bool {
+	for _, group := range tw.Cfg.TabGroups {
+		for _, tab := range group.Tabs {
+			if tab.ID == tabID {
+				return tab.Pinned
+			}
+		}
+	}
+	return false
+}
+
+func (tw *TerminalWindow) toggleTabPinned(tabID string) {
+	for gIdx, group := range tw.Cfg.TabGroups {
+		for tIdx, tab := range group.Tabs {
+			if tab.ID == tabID {
+				tw.Cfg.TabGroups[gIdx].Tabs[tIdx].Pinned = !tw.Cfg.TabGroups[gIdx].Tabs[tIdx].Pinned
+				_ = config.SaveConfig(tw.Cfg)
+
+				// Re-render and sync to all windows
+				for w := range activeWindows {
+					w.Cfg = tw.Cfg
+					w.renderWorkspace()
+				}
+
+				UpdateAppHoldStatus(tw.App, tw.Cfg)
+				return
+			}
+		}
+	}
+}
+
+func (tw *TerminalWindow) RestoreBackgroundTab(tab *TabInstance, groupID string) {
+	tab.GroupID = groupID
+	tw.TabInstances[tab.ID] = tab
+
+	// Re-add its VTE widget to the window's Stack
+	tw.Stack.AddChild(tab.TermInst.Widget)
+
+	tw.applyConfigToInstance(tab.TermInst)
+
+	// Re-bind callbacks to the new window
+	tab.TermInst.OnChildExited(func(status int) {
+		tab.TermInst.Destroy()
+		tw.CloseTab(tab.ID)
+	})
+
+	tab.TermInst.OnWindowTitleChanged(func(title string) {
+		if tw.isTabCustomNamed(tab.ID) {
+			if tw.ActiveTabID == tab.ID {
+				tw.Win.SetTitle(title + " - Terminal")
+			}
+			return
+		}
+
+		autoTitle := tw.getTabAutoTitle(tab.ID, title)
+		tab.Name = autoTitle
+
+		if tw.ActiveTabID == tab.ID {
+			tw.Win.SetTitle(autoTitle + " - Terminal")
+		}
+		tw.renderWorkspace()
+	})
+}
