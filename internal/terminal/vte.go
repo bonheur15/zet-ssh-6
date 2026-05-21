@@ -8,6 +8,13 @@ package terminal
 
 extern void goOnChildExited(void *termPtr, int status);
 extern void goOnWindowTitleChanged(void *termPtr, char *title);
+extern void goOnShellSpawned(void *termPtr, int pid);
+
+static void goOnShellSpawned_wrapper(VteTerminal *terminal, GPid pid, GError *error, gpointer user_data) {
+	if (error == NULL && pid > 0) {
+		goOnShellSpawned(terminal, (int)pid);
+	}
+}
 
 static void c_child_exited_cb(VteTerminal *terminal, gint status, gpointer user_data) {
 	goOnChildExited(terminal, (int)status);
@@ -35,7 +42,7 @@ static void spawn_shell(VteTerminal *term, const char *shell_path, const char *w
 		NULL, NULL, NULL, // child setup
 		-1, // timeout
 		NULL, // cancellable
-		NULL, // spawn callback (not strictly needed as we use child-exited signal)
+		goOnShellSpawned_wrapper, // spawn callback
 		NULL  // user_data
 	);
 }
@@ -131,6 +138,7 @@ type VteTerminalInstance struct {
 	Widget               *gtk.Widget
 	onChildExited        func(status int)
 	onWindowTitleChanged func(title string)
+	childPID             int
 }
 
 //export goOnChildExited
@@ -146,6 +154,14 @@ func goOnWindowTitleChanged(termPtr unsafe.Pointer, title *C.char) {
 	ptr := uintptr(termPtr)
 	if inst, exists := activeTerminals[ptr]; exists && inst.onWindowTitleChanged != nil {
 		inst.onWindowTitleChanged(C.GoString(title))
+	}
+}
+
+//export goOnShellSpawned
+func goOnShellSpawned(termPtr unsafe.Pointer, pid C.int) {
+	ptr := uintptr(termPtr)
+	if inst, exists := activeTerminals[ptr]; exists {
+		inst.childPID = int(pid)
 	}
 }
 
@@ -258,6 +274,28 @@ func (t *VteTerminalInstance) FeedChild(text string) {
 func (t *VteTerminalInstance) HasSelection() bool {
 	termPtr := (*C.VteTerminal)(unsafe.Pointer(t.Widget.Object.Native()))
 	return C.vte_terminal_get_has_selection(termPtr) != 0
+}
+
+func (t *VteTerminalInstance) GetCurrentDirectoryURI() string {
+	termPtr := (*C.VteTerminal)(unsafe.Pointer(t.Widget.Object.Native()))
+	uri := C.vte_terminal_get_current_directory_uri(termPtr)
+	if uri == nil {
+		return ""
+	}
+	return C.GoString(uri)
+}
+
+func (t *VteTerminalInstance) GetWindowTitle() string {
+	termPtr := (*C.VteTerminal)(unsafe.Pointer(t.Widget.Object.Native()))
+	title := C.vte_terminal_get_window_title(termPtr)
+	if title == nil {
+		return ""
+	}
+	return C.GoString(title)
+}
+
+func (t *VteTerminalInstance) GetChildPID() int {
+	return t.childPID
 }
 
 func ActiveTerminals() map[uintptr]*VteTerminalInstance {

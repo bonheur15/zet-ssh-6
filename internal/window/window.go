@@ -29,6 +29,7 @@ type TerminalWindow struct {
 	HistoryArrowLbl  *gtk.Label
 	isCreatingGroup    bool
 	renamingGroupIndex int // -1 if not renaming
+	renamingTabID      string // empty if not renaming
 	sidebarTimeoutID glib.SourceHandle
 }
 
@@ -153,6 +154,12 @@ func (tw *TerminalWindow) setupUI() {
 
 	// Set up the left hover dock (workspace tabs & past commands)
 	tw.setupSideDock()
+
+	// Periodic title auto-updater (every 1 second)
+	glib.TimeoutAdd(1000, func() bool {
+		tw.updateTabAutoTitles()
+		return true
+	})
 }
 
 func (tw *TerminalWindow) setupShortcuts() {

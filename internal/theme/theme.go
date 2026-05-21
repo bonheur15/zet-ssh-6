@@ -440,9 +440,22 @@ popover > contents {
 	opacity: 0.5;
 }
 
-.tab-action-btn:hover {
+.tab-action-btn:hover:not(.tab-close-btn) {
+	opacity: 1.0;
+	background: rgba(255, 255, 255, 0.08);
+}
+
+.tab-action-btn:hover:not(.tab-close-btn) image {
+	color: #ffffff;
+}
+
+.tab-action-btn.tab-close-btn:hover {
 	opacity: 1.0;
 	background: rgba(239, 68, 68, 0.15);
+}
+
+.tab-action-btn.tab-close-btn:hover image {
+	color: #ef4444;
 }
 
 .tab-action-btn image {
@@ -452,10 +465,6 @@ popover > contents {
 
 .tab-row:hover .tab-action-btn image {
 	color: #94a3b8;
-}
-
-.tab-action-btn:hover image {
-	color: #ef4444;
 }
 
 /* Collapsible Section for Past Commands */

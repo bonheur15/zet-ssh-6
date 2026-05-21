@@ -1,6 +1,10 @@
 package window
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
@@ -56,17 +60,20 @@ func (tw *TerminalWindow) CreateTab(id, name, groupID string, saveToConfig bool)
 	})
 
 	inst.OnWindowTitleChanged(func(title string) {
-		title = strings.TrimSpace(title)
-		if title == "" {
-			title = "Console"
+		if tw.isTabCustomNamed(id) {
+			if tw.ActiveTabID == id {
+				tw.Win.SetTitle(title + " - Terminal")
+			}
+			return
 		}
-		// Automatically derive tab name from the active window title
-		tab.Name = title
-		tw.updateTabNameInConfig(id, title)
+
+		autoTitle := tw.getTabAutoTitle(id, title)
+		tab.Name = autoTitle
+		tw.updateTabNameInConfig(id, autoTitle)
 		_ = config.SaveConfig(tw.Cfg)
 
 		if tw.ActiveTabID == id {
-			tw.Win.SetTitle(title + " - Terminal")
+			tw.Win.SetTitle(autoTitle + " - Terminal")
 		}
 		tw.renderWorkspace()
 	})
@@ -247,4 +254,245 @@ func (tw *TerminalWindow) setupContextMenuForTab(tab *TabInstance) {
 		}
 	})
 	tab.TermInst.Widget.AddController(clickGesture)
+}
+
+func expandPath(path string) string {
+	if path == "~" {
+		home, _ := os.UserHomeDir()
+		return home
+	}
+	if strings.HasPrefix(path, "~/") {
+		home, _ := os.UserHomeDir()
+		return filepath.Join(home, path[2:])
+	}
+	return path
+}
+
+func getGitBranch(dir string) string {
+	current := dir
+	for {
+		headPath := filepath.Join(current, ".git", "HEAD")
+		data, err := os.ReadFile(headPath)
+		if err != nil {
+			dotGitPath := filepath.Join(current, ".git")
+			st, err := os.Stat(dotGitPath)
+			if err == nil && !st.IsDir() {
+				gitDirData, err := os.ReadFile(dotGitPath)
+				if err == nil {
+					content := strings.TrimSpace(string(gitDirData))
+					if strings.HasPrefix(content, "gitdir: ") {
+						realGitDir := strings.TrimPrefix(content, "gitdir: ")
+						if !filepath.IsAbs(realGitDir) {
+							realGitDir = filepath.Clean(filepath.Join(current, realGitDir))
+						}
+						headPath = filepath.Join(realGitDir, "HEAD")
+						data, err = os.ReadFile(headPath)
+					}
+				}
+			}
+		}
+		if err == nil {
+			content := strings.TrimSpace(string(data))
+			if strings.HasPrefix(content, "ref: refs/heads/") {
+				return strings.TrimPrefix(content, "ref: refs/heads/")
+			}
+			if len(content) > 7 {
+				return content[:7]
+			}
+			return content
+		}
+
+		parent := filepath.Dir(current)
+		if parent == current {
+			break
+		}
+		current = parent
+	}
+	return ""
+}
+
+func getForegroundCommand(shellPID int) string {
+	if shellPID <= 0 {
+		return ""
+	}
+	statPath := fmt.Sprintf("/proc/%d/stat", shellPID)
+	data, err := os.ReadFile(statPath)
+	if err != nil {
+		return ""
+	}
+	content := string(data)
+	lastParen := strings.LastIndex(content, ")")
+	if lastParen == -1 || lastParen+2 >= len(content) {
+		return ""
+	}
+	fields := strings.Fields(content[lastParen+2:])
+	if len(fields) < 6 {
+		return ""
+	}
+	pgrp, err := strconv.Atoi(fields[2])
+	if err != nil {
+		return ""
+	}
+	tpgid, err := strconv.Atoi(fields[5])
+	if err != nil {
+		return ""
+	}
+
+	if tpgid <= 0 || tpgid == pgrp {
+		return ""
+	}
+
+	// Try reading tpgid cmdline first
+	cmdlinePath := fmt.Sprintf("/proc/%d/cmdline", tpgid)
+	cmdData, err := os.ReadFile(cmdlinePath)
+	if err == nil && len(cmdData) > 0 {
+		cmdStr := string(cmdData)
+		if idx := strings.IndexByte(cmdStr, 0); idx != -1 {
+			cmdStr = cmdStr[:idx]
+		}
+		parts := strings.Fields(cmdStr)
+		if len(parts) > 0 {
+			return filepath.Base(parts[0])
+		}
+		return filepath.Base(cmdStr)
+	}
+
+	// If the group leader is dead, find any child of shellPID that belongs to the tpgid group
+	childrenPath := fmt.Sprintf("/proc/%d/task/%d/children", shellPID, shellPID)
+	childrenData, err := os.ReadFile(childrenPath)
+	if err == nil {
+		childrenFields := strings.Fields(string(childrenData))
+		for _, childStr := range childrenFields {
+			childPID, err := strconv.Atoi(childStr)
+			if err != nil {
+				continue
+			}
+			childStatPath := fmt.Sprintf("/proc/%d/stat", childPID)
+			cStatData, err := os.ReadFile(childStatPath)
+			if err == nil {
+				cContent := string(cStatData)
+				cLastParen := strings.LastIndex(cContent, ")")
+				if cLastParen != -1 && cLastParen+2 < len(cContent) {
+					cFields := strings.Fields(cContent[cLastParen+2:])
+					if len(cFields) >= 3 {
+						cPgrp, _ := strconv.Atoi(cFields[2])
+						if cPgrp == tpgid {
+							cCmdlinePath := fmt.Sprintf("/proc/%d/cmdline", childPID)
+							cCmdData, err := os.ReadFile(cCmdlinePath)
+							if err == nil && len(cCmdData) > 0 {
+								cCmdStr := string(cCmdData)
+								if idx := strings.IndexByte(cCmdStr, 0); idx != -1 {
+									cCmdStr = cCmdStr[:idx]
+								}
+								parts := strings.Fields(cCmdStr)
+								if len(parts) > 0 {
+									return filepath.Base(parts[0])
+								}
+								return filepath.Base(cCmdStr)
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return ""
+}
+
+func (tw *TerminalWindow) getTabAutoTitle(tabID string, rawTitle string) string {
+	rawTitle = strings.TrimSpace(rawTitle)
+
+	// 1. Try to get the active foreground command running in the terminal
+	if inst, ok := tw.TabInstances[tabID]; ok {
+		shellPID := inst.TermInst.GetChildPID()
+		if shellPID > 0 {
+			if fgCmd := getForegroundCommand(shellPID); fgCmd != "" {
+				return fgCmd
+			}
+		}
+	}
+
+	var dirPath string
+	if strings.Contains(rawTitle, "@") && strings.Contains(rawTitle, ":") {
+		parts := strings.SplitN(rawTitle, ":", 2)
+		if len(parts) == 2 {
+			dirPath = strings.TrimSpace(parts[1])
+		}
+	}
+
+	if dirPath == "" {
+		if inst, ok := tw.TabInstances[tabID]; ok {
+			uri := inst.TermInst.GetCurrentDirectoryURI()
+			if uri != "" {
+				u := strings.TrimPrefix(uri, "file://")
+				if idx := strings.Index(u, "/"); idx != -1 {
+					u = u[idx:]
+				}
+				dirPath = u
+			}
+		}
+	}
+
+	if dirPath != "" {
+		expanded := expandPath(dirPath)
+		baseName := filepath.Base(expanded)
+		if baseName == "." || baseName == "/" {
+			baseName = dirPath
+		}
+		branch := getGitBranch(expanded)
+		if branch != "" {
+			return fmt.Sprintf("%s (%s)", baseName, branch)
+		}
+		return baseName
+	}
+
+	if rawTitle != "" {
+		return rawTitle
+	}
+
+	return "Console"
+}
+
+func (tw *TerminalWindow) isTabCustomNamed(tabID string) bool {
+	for _, group := range tw.Cfg.TabGroups {
+		for _, tab := range group.Tabs {
+			if tab.ID == tabID {
+				return tab.CustomName
+			}
+		}
+	}
+	return false
+}
+
+func (tw *TerminalWindow) setTabCustomNameInConfig(tabID string, name string, custom bool) {
+	for gIdx, group := range tw.Cfg.TabGroups {
+		for tIdx, tab := range group.Tabs {
+			if tab.ID == tabID {
+				tw.Cfg.TabGroups[gIdx].Tabs[tIdx].Name = name
+				tw.Cfg.TabGroups[gIdx].Tabs[tIdx].CustomName = custom
+				return
+			}
+		}
+	}
+}
+
+func (tw *TerminalWindow) updateTabAutoTitles() {
+	for id, tab := range tw.TabInstances {
+		if tw.isTabCustomNamed(id) {
+			continue
+		}
+
+		rawTitle := tab.TermInst.GetWindowTitle()
+		autoTitle := tw.getTabAutoTitle(id, rawTitle)
+		if tab.Name != autoTitle {
+			tab.Name = autoTitle
+			tw.updateTabNameInConfig(id, autoTitle)
+			_ = config.SaveConfig(tw.Cfg)
+			if tw.ActiveTabID == id {
+				tw.Win.SetTitle(autoTitle + " - Terminal")
+			}
+			tw.renderWorkspace()
+		}
+	}
 }

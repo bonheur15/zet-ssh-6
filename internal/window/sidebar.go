@@ -90,7 +90,7 @@ func (tw *TerminalWindow) setupSideDock() {
 		}
 		tw.sidebarTimeoutID = glib.TimeoutAdd(250, func() bool {
 			tw.sidebarTimeoutID = 0
-			if !tw.SidebarPinned && !tw.isCreatingGroup && tw.renamingGroupIndex == -1 {
+			if !tw.SidebarPinned && !tw.isCreatingGroup && tw.renamingGroupIndex == -1 && tw.renamingTabID == "" {
 				tw.Revealer.SetRevealChild(false)
 			}
 			return false
@@ -373,43 +373,126 @@ func (tw *TerminalWindow) renderWorkspace() {
 		for _, tabCfg := range groupConfig.Tabs {
 			tabConfig := tabCfg
 
-			tabRow := gtk.NewBox(gtk.OrientationHorizontal, 4)
-			tabRow.AddCSSClass("tab-row")
-			tabRow.SetHExpand(true)
+			if tabConfig.ID == tw.renamingTabID {
+				renameRow := gtk.NewBox(gtk.OrientationHorizontal, 4)
+				renameRow.AddCSSClass("sidebar-inline-edit-row")
+				renameRow.SetHExpand(true)
+				renameRow.SetMarginStart(8)
 
-			if tabConfig.ID == tw.ActiveTabID {
-				tabRow.AddCSSClass("active")
+				entry := gtk.NewEntry()
+				entry.AddCSSClass("sidebar-inline-entry")
+				entry.SetText(tabConfig.Name)
+				entry.SetHExpand(true)
+
+				glib.IdleAdd(func() {
+					entry.GrabFocus()
+				})
+
+				btnSave := gtk.NewButton()
+				btnSave.AddCSSClass("sidebar-inline-btn")
+				btnSave.SetTooltipText("Save Name")
+				imgSave := gtk.NewImageFromIconName("emblem-ok-symbolic")
+				btnSave.SetChild(imgSave)
+
+				btnCancel := gtk.NewButton()
+				btnCancel.AddCSSClass("sidebar-inline-btn")
+				btnCancel.SetTooltipText("Cancel")
+				imgCancel := gtk.NewImageFromIconName("window-close-symbolic")
+				btnCancel.SetChild(imgCancel)
+
+				renameRow.Append(entry)
+				renameRow.Append(btnSave)
+				renameRow.Append(btnCancel)
+
+				saveFunc := func() {
+					name := entry.Text()
+					if name != "" {
+						tw.setTabCustomNameInConfig(tabConfig.ID, name, true)
+						if inst, ok := tw.TabInstances[tabConfig.ID]; ok {
+							inst.Name = name
+						}
+						if tw.ActiveTabID == tabConfig.ID {
+							tw.Win.SetTitle(name + " - Terminal")
+						}
+						_ = config.SaveConfig(tw.Cfg)
+					}
+					tw.renamingTabID = ""
+					tw.renderWorkspace()
+				}
+
+				cancelFunc := func() {
+					tw.renamingTabID = ""
+					tw.renderWorkspace()
+				}
+
+				entry.ConnectActivate(saveFunc)
+
+				keyCtrl := gtk.NewEventControllerKey()
+				keyCtrl.ConnectKeyPressed(func(keyval uint, keycode uint, state gdk.ModifierType) bool {
+					if keyval == gdk.KEY_Escape {
+						cancelFunc()
+						return true
+					}
+					return false
+				})
+				entry.AddController(keyCtrl)
+
+				btnSave.ConnectClicked(saveFunc)
+				btnCancel.ConnectClicked(cancelFunc)
+
+				childrenBox.Append(renameRow)
+			} else {
+				tabRow := gtk.NewBox(gtk.OrientationHorizontal, 4)
+				tabRow.AddCSSClass("tab-row")
+				tabRow.SetHExpand(true)
+
+				if tabConfig.ID == tw.ActiveTabID {
+					tabRow.AddCSSClass("active")
+				}
+
+				// Main Select Tab Row Button
+				btnSelectTab := gtk.NewButton()
+				btnSelectTab.AddCSSClass("tab-select-btn")
+				btnSelectTab.SetHExpand(true)
+				btnSelectTab.SetHAlign(gtk.AlignFill)
+
+				lblTab := gtk.NewLabel(tabConfig.Name)
+				lblTab.AddCSSClass("tab-label")
+				lblTab.SetHAlign(gtk.AlignStart)
+				lblTab.SetXAlign(0.0)
+				btnSelectTab.SetChild(lblTab)
+
+				btnSelectTab.ConnectClicked(func() {
+					tw.ActivateTab(tabConfig.ID)
+				})
+				tabRow.Append(btnSelectTab)
+
+				// Rename tab button
+				btnRenameTab := gtk.NewButton()
+				btnRenameTab.AddCSSClass("tab-action-btn")
+				btnRenameTab.SetTooltipText("Rename tab")
+				imgRenameTab := gtk.NewImageFromIconName("document-edit-symbolic")
+				btnRenameTab.SetChild(imgRenameTab)
+				btnRenameTab.ConnectClicked(func() {
+					tw.renamingTabID = tabConfig.ID
+					tw.renderWorkspace()
+				})
+				tabRow.Append(btnRenameTab)
+
+				// Fully working, comfortably padded Close button using symbolic cross icon
+				btnCloseTab := gtk.NewButton()
+				btnCloseTab.AddCSSClass("tab-action-btn")
+				btnCloseTab.AddCSSClass("tab-close-btn") // Differentiate for red hover
+				btnCloseTab.SetTooltipText("Close tab")
+				imgCloseTab := gtk.NewImageFromIconName("window-close-symbolic")
+				btnCloseTab.SetChild(imgCloseTab)
+				btnCloseTab.ConnectClicked(func() {
+					tw.CloseTab(tabConfig.ID)
+				})
+				tabRow.Append(btnCloseTab)
+
+				childrenBox.Append(tabRow)
 			}
-
-			// Main Select Tab Row Button
-			btnSelectTab := gtk.NewButton()
-			btnSelectTab.AddCSSClass("tab-select-btn")
-			btnSelectTab.SetHExpand(true)
-			btnSelectTab.SetHAlign(gtk.AlignFill)
-
-			lblTab := gtk.NewLabel(tabConfig.Name)
-			lblTab.AddCSSClass("tab-label")
-			lblTab.SetHAlign(gtk.AlignStart)
-			lblTab.SetXAlign(0.0)
-			btnSelectTab.SetChild(lblTab)
-
-			btnSelectTab.ConnectClicked(func() {
-				tw.ActivateTab(tabConfig.ID)
-			})
-			tabRow.Append(btnSelectTab)
-
-			// Fully working, comfortably padded Close button using symbolic cross icon
-			btnCloseTab := gtk.NewButton()
-			btnCloseTab.AddCSSClass("tab-action-btn")
-			btnCloseTab.SetTooltipText("Close tab")
-			imgCloseTab := gtk.NewImageFromIconName("window-close-symbolic")
-			btnCloseTab.SetChild(imgCloseTab)
-			btnCloseTab.ConnectClicked(func() {
-				tw.CloseTab(tabConfig.ID)
-			})
-			tabRow.Append(btnCloseTab)
-
-			childrenBox.Append(tabRow)
 		}
 
 		groupContainer.Append(childrenBox)

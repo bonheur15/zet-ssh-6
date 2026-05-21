@@ -7,8 +7,9 @@ import (
 )
 
 type TabConfig struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID         string `json:"id"`
+	Name       string `json:"name"`
+	CustomName bool   `json:"custom_name"`
 }
 
 type GroupConfig struct {
