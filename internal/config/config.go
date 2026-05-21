@@ -20,14 +20,21 @@ type GroupConfig struct {
 }
 
 type Config struct {
-	FontName         string        `json:"font_name"`
-	FontSize         int           `json:"font_size"`
-	Shell            string        `json:"shell"`
-	CursorBlinkMode  int           `json:"cursor_blink_mode"` // 0 = system, 1 = blink on, 2 = blink off
-	CursorShape      int           `json:"cursor_shape"`      // 0 = block, 1 = i-beam, 2 = underline
-	ScrollbackLines  int           `json:"scrollback_lines"`
-	CommandHistory   []string      `json:"command_history"`
-	TabGroups        []GroupConfig `json:"tab_groups"`
+	FontName          string        `json:"font_name"`
+	FontSize          int           `json:"font_size"`
+	Shell             string        `json:"shell"`
+	CursorBlinkMode   int           `json:"cursor_blink_mode"` // 0 = system, 1 = blink on, 2 = blink off
+	CursorShape       int           `json:"cursor_shape"`      // 0 = block, 1 = i-beam, 2 = underline
+	ScrollbackLines   int           `json:"scrollback_lines"`
+	CommandHistory    []string      `json:"command_history"`
+	TabGroups         []GroupConfig `json:"tab_groups"`
+	UIThemeAccent     string        `json:"ui_theme_accent"`      // "cyan", "purple", "emerald", "amber", "crimson", "steel", "custom"
+	CustomAccentColor string        `json:"custom_accent_color"`  // Hex, default: #38bdf8
+	CustomGlowColor   string        `json:"custom_glow_color"`    // rgba or hex, default: rgba(56, 189, 248, 0.4)
+	TermThemePreset   string        `json:"term_theme_preset"`    // "default", "nord", "gruvbox", "solarized", "monokai", "onehalf", "custom"
+	TermBackground    string        `json:"term_background"`      // Hex, default: #121212
+	TermForeground    string        `json:"term_foreground"`      // Hex, default: #e0e0e0
+	TermPalette       []string      `json:"term_palette"`         // 16 ANSI colors
 }
 
 func DefaultConfig() *Config {
@@ -51,6 +58,18 @@ func DefaultConfig() *Config {
 					},
 				},
 			},
+		},
+		UIThemeAccent:     "cyan",
+		CustomAccentColor: "#38bdf8",
+		CustomGlowColor:   "rgba(56, 189, 248, 0.4)",
+		TermThemePreset:   "default",
+		TermBackground:    "#121212",
+		TermForeground:    "#e0e0e0",
+		TermPalette: []string{
+			"#1c1c1c", "#d32f2f", "#388e3c", "#fbc02d",
+			"#1976d2", "#7b1fa2", "#0097a7", "#bdbdbd",
+			"#424242", "#ef5350", "#66bb6a", "#fff59d",
+			"#42a5f5", "#ab47bc", "#26c6da", "#ffffff",
 		},
 	}
 }
@@ -82,6 +101,45 @@ func LoadConfig() *Config {
 	}
 	if cfg.FontName == "" {
 		cfg.FontName = "monospace"
+		_ = SaveConfig(cfg)
+	}
+	
+	// Ensure defaults for new fields
+	needsSave := false
+	if cfg.UIThemeAccent == "" {
+		cfg.UIThemeAccent = "cyan"
+		needsSave = true
+	}
+	if cfg.CustomAccentColor == "" {
+		cfg.CustomAccentColor = "#38bdf8"
+		needsSave = true
+	}
+	if cfg.CustomGlowColor == "" {
+		cfg.CustomGlowColor = "rgba(56, 189, 248, 0.4)"
+		needsSave = true
+	}
+	if cfg.TermThemePreset == "" {
+		cfg.TermThemePreset = "default"
+		needsSave = true
+	}
+	if cfg.TermBackground == "" {
+		cfg.TermBackground = "#121212"
+		needsSave = true
+	}
+	if cfg.TermForeground == "" {
+		cfg.TermForeground = "#e0e0e0"
+		needsSave = true
+	}
+	if len(cfg.TermPalette) == 0 {
+		cfg.TermPalette = []string{
+			"#1c1c1c", "#d32f2f", "#388e3c", "#fbc02d",
+			"#1976d2", "#7b1fa2", "#0097a7", "#bdbdbd",
+			"#424242", "#ef5350", "#66bb6a", "#fff59d",
+			"#42a5f5", "#ab47bc", "#26c6da", "#ffffff",
+		}
+		needsSave = true
+	}
+	if needsSave {
 		_ = SaveConfig(cfg)
 	}
 	return cfg

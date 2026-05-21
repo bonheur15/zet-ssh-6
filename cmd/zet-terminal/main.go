@@ -5,10 +5,8 @@ package main
 import (
 	"os"
 
-	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"zet-terminal/internal/config"
-	"zet-terminal/internal/theme"
 	"zet-terminal/internal/window"
 )
 
@@ -24,14 +22,8 @@ func main() {
 			settings.SetObjectProperty("gtk-application-prefer-dark-theme", true)
 		}
 
-		// Load Theme CSS
-		cssProvider := gtk.NewCSSProvider()
-		cssProvider.LoadFromData(theme.TerminalCSS)
-		gtk.StyleContextAddProviderForDisplay(
-			gdk.DisplayGetDefault(),
-			cssProvider,
-			gtk.STYLE_PROVIDER_PRIORITY_USER,
-		)
+		// Load Dynamic Theme CSS
+		window.InitGlobalCSS(cfg)
 
 		// Create a new terminal window
 		window.NewTerminalWindow(app, cfg)

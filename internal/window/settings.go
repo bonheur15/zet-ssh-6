@@ -1,19 +1,110 @@
 package window
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 
 	"zet-terminal/internal/config"
+	"zet-terminal/internal/theme"
 )
+
+var uiAccents = []string{"cyan", "purple", "emerald", "amber", "crimson", "steel", "custom"}
+
+func getAccentIndex(accent string) int {
+	for i, a := range uiAccents {
+		if a == accent {
+			return i
+		}
+	}
+	return 0
+}
+
+var termThemes = []string{"default", "nord", "gruvbox", "solarized", "monokai", "onehalf", "custom"}
+
+func getTermThemeIndex(theme string) int {
+	for i, t := range termThemes {
+		if t == theme {
+			return i
+		}
+	}
+	return 0
+}
+
+func isValidColor(s string) bool {
+	s = strings.TrimSpace(s)
+	if strings.HasPrefix(s, "#") {
+		h := s[1:]
+		if len(h) != 3 && len(h) != 6 && len(h) != 8 {
+			return false
+		}
+		for _, r := range h {
+			if !((r >= '0' && r <= '9') || (r >= 'a' && r <= 'f') || (r >= 'A' && r <= 'F')) {
+				return false
+			}
+		}
+		return true
+	}
+	if strings.HasPrefix(s, "rgba(") && strings.HasSuffix(s, ")") {
+		return true
+	}
+	if strings.HasPrefix(s, "rgb(") && strings.HasSuffix(s, ")") {
+		return true
+	}
+	return false
+}
+
+func setupColorPreview(entry *gtk.Entry, preview *gtk.Box) {
+	preview.AddCSSClass("color-preview")
+	provider := gtk.NewCSSProvider()
+	preview.StyleContext().AddProvider(provider, gtk.STYLE_PROVIDER_PRIORITY_USER)
+	updatePreview := func() {
+		color := strings.TrimSpace(entry.Text())
+		if isValidColor(color) {
+			provider.LoadFromData(fmt.Sprintf(
+				".color-preview { background-color: %s; min-width: 16px; min-height: 16px; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.25); }",
+				color,
+			))
+		} else {
+			provider.LoadFromData(".color-preview { background-color: transparent; min-width: 16px; min-height: 16px; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.1); }")
+		}
+	}
+	entry.Connect("changed", updatePreview)
+	updatePreview()
+}
+
+func createColorField(labelText, defaultValue string) (*gtk.Box, *gtk.Entry) {
+	row := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	
+	lbl := gtk.NewLabel(labelText)
+	lbl.AddCSSClass("settings-label")
+	lbl.SetHAlign(gtk.AlignStart)
+	lbl.SetHExpand(true)
+	row.Append(lbl)
+
+	entry := gtk.NewEntry()
+	entry.AddCSSClass("settings-entry")
+	entry.SetText(defaultValue)
+	
+	preview := gtk.NewBox(gtk.OrientationHorizontal, 0)
+	preview.SetSizeRequest(16, 16)
+	preview.SetVAlign(gtk.AlignCenter)
+	
+	setupColorPreview(entry, preview)
+
+	row.Append(entry)
+	row.Append(preview)
+
+	return row, entry
+}
 
 func (tw *TerminalWindow) openSettingsDialog() {
 	dialog := gtk.NewWindow()
 	dialog.SetTitle("Settings")
 	dialog.SetTransientFor(&tw.Win.Window)
 	dialog.SetModal(true)
-	dialog.SetDefaultSize(400, 350)
+	dialog.SetDefaultSize(450, 550)
 	dialog.AddCSSClass("settings-dialog")
 
 	// Set up layout
@@ -129,6 +220,143 @@ func (tw *TerminalWindow) openSettingsDialog() {
 	rowCursorBlink.Append(comboCursorBlink)
 	contentBox.Append(rowCursorBlink)
 
+	// --- SECTION: UI THEME ACCENT ---
+	lblThemeTitle := gtk.NewLabel("UI Theme Accent")
+	lblThemeTitle.AddCSSClass("settings-section-title")
+	lblThemeTitle.SetHAlign(gtk.AlignStart)
+	lblThemeTitle.SetMarginTop(12)
+	contentBox.Append(lblThemeTitle)
+
+	// Accent Preset Row
+	rowAccent := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	lblAccent := gtk.NewLabel("UI Accent Preset:")
+	lblAccent.AddCSSClass("settings-label")
+	lblAccent.SetHAlign(gtk.AlignStart)
+	lblAccent.SetHExpand(true)
+
+	comboAccent := gtk.NewComboBoxText()
+	comboAccent.AddCSSClass("settings-dropdown")
+	comboAccent.AppendText("Cyan (Default)")
+	comboAccent.AppendText("Purple")
+	comboAccent.AppendText("Emerald")
+	comboAccent.AppendText("Amber")
+	comboAccent.AppendText("Crimson")
+	comboAccent.AppendText("Steel")
+	comboAccent.AppendText("Custom")
+	comboAccent.SetActive(getAccentIndex(tw.Cfg.UIThemeAccent))
+	rowAccent.Append(lblAccent)
+	rowAccent.Append(comboAccent)
+	contentBox.Append(rowAccent)
+
+	// Custom Accent Box (shown only when "Custom" selected)
+	customUIBox := gtk.NewBox(gtk.OrientationVertical, 8)
+	
+	rowCustomAccent, entryCustomAccent := createColorField("Accent Color (Hex):", tw.Cfg.CustomAccentColor)
+	customUIBox.Append(rowCustomAccent)
+	
+	rowCustomGlow, entryCustomGlow := createColorField("Accent Glow Color:", tw.Cfg.CustomGlowColor)
+	customUIBox.Append(rowCustomGlow)
+	contentBox.Append(customUIBox)
+
+	// --- SECTION: TERMINAL THEME & PALETTE ---
+	lblTermTitle := gtk.NewLabel("Terminal Theme")
+	lblTermTitle.AddCSSClass("settings-section-title")
+	lblTermTitle.SetHAlign(gtk.AlignStart)
+	lblTermTitle.SetMarginTop(12)
+	contentBox.Append(lblTermTitle)
+
+	rowTermTheme := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	lblTermTheme := gtk.NewLabel("Terminal Preset:")
+	lblTermTheme.AddCSSClass("settings-label")
+	lblTermTheme.SetHAlign(gtk.AlignStart)
+	lblTermTheme.SetHExpand(true)
+
+	comboTermTheme := gtk.NewComboBoxText()
+	comboTermTheme.AddCSSClass("settings-dropdown")
+	comboTermTheme.AppendText("Default")
+	comboTermTheme.AppendText("Nord")
+	comboTermTheme.AppendText("Gruvbox")
+	comboTermTheme.AppendText("Solarized")
+	comboTermTheme.AppendText("Monokai")
+	comboTermTheme.AppendText("One Half")
+	comboTermTheme.AppendText("Custom")
+	comboTermTheme.SetActive(getTermThemeIndex(tw.Cfg.TermThemePreset))
+	rowTermTheme.Append(lblTermTheme)
+	rowTermTheme.Append(comboTermTheme)
+	contentBox.Append(rowTermTheme)
+
+	// Custom Terminal Color Box (shown only when "Custom" selected)
+	customTermBox := gtk.NewBox(gtk.OrientationVertical, 8)
+	
+	rowTermFg, entryTermFg := createColorField("Foreground Color (Hex):", tw.Cfg.TermForeground)
+	customTermBox.Append(rowTermFg)
+	
+	rowTermBg, entryTermBg := createColorField("Background Color (Hex):", tw.Cfg.TermBackground)
+	customTermBox.Append(rowTermBg)
+
+	// Palette section
+	lblPaletteTitle := gtk.NewLabel("ANSI Palette (16 Colors)")
+	lblPaletteTitle.AddCSSClass("settings-label")
+	lblPaletteTitle.SetHAlign(gtk.AlignStart)
+	lblPaletteTitle.SetMarginTop(6)
+	customTermBox.Append(lblPaletteTitle)
+
+	grid := gtk.NewGrid()
+	grid.SetColumnSpacing(8)
+	grid.SetRowSpacing(8)
+	grid.SetHAlign(gtk.AlignStart)
+
+	var entryPalette [16]*gtk.Entry
+	for i := 0; i < 16; i++ {
+		rowVal := i / 4
+		colVal := i % 4
+
+		cell := gtk.NewBox(gtk.OrientationHorizontal, 4)
+		
+		idxLbl := gtk.NewLabel(fmt.Sprintf("%d:", i))
+		idxLbl.AddCSSClass("settings-label")
+		idxLbl.SetWidthChars(2)
+		cell.Append(idxLbl)
+
+		entry := gtk.NewEntry()
+		entry.AddCSSClass("settings-entry")
+		entry.SetWidthChars(7)
+		if i < len(tw.Cfg.TermPalette) {
+			entry.SetText(tw.Cfg.TermPalette[i])
+		} else {
+			entry.SetText("#ffffff")
+		}
+
+		preview := gtk.NewBox(gtk.OrientationHorizontal, 0)
+		preview.SetSizeRequest(14, 14)
+		preview.SetVAlign(gtk.AlignCenter)
+		
+		setupColorPreview(entry, preview)
+
+		cell.Append(entry)
+		cell.Append(preview)
+
+		grid.Attach(cell, colVal, rowVal, 1, 1)
+		entryPalette[i] = entry
+	}
+	customTermBox.Append(grid)
+	contentBox.Append(customTermBox)
+
+	// Visibility toggle functions
+	updateUIVisibility := func() {
+		isCustom := comboAccent.Active() == 6
+		customUIBox.SetVisible(isCustom)
+	}
+	comboAccent.Connect("changed", updateUIVisibility)
+	updateUIVisibility()
+
+	updateTermVisibility := func() {
+		isCustom := comboTermTheme.Active() == 6
+		customTermBox.SetVisible(isCustom)
+	}
+	comboTermTheme.Connect("changed", updateTermVisibility)
+	updateTermVisibility()
+
 	// --- BOTTOM BUTTONS: SAVE & CANCEL ---
 	btnBox := gtk.NewBox(gtk.OrientationHorizontal, 12)
 	btnBox.SetHAlign(gtk.AlignEnd)
@@ -164,14 +392,45 @@ func (tw *TerminalWindow) openSettingsDialog() {
 			tw.Cfg.CursorBlinkMode = blinkIdx
 		}
 
+		// Accent settings
+		accentIdx := comboAccent.Active()
+		if accentIdx >= 0 && accentIdx < len(uiAccents) {
+			tw.Cfg.UIThemeAccent = uiAccents[accentIdx]
+		}
+		tw.Cfg.CustomAccentColor = strings.TrimSpace(entryCustomAccent.Text())
+		tw.Cfg.CustomGlowColor = strings.TrimSpace(entryCustomGlow.Text())
+
+		// Terminal Theme settings
+		termThemeIdx := comboTermTheme.Active()
+		if termThemeIdx >= 0 && termThemeIdx < len(termThemes) {
+			tw.Cfg.TermThemePreset = termThemes[termThemeIdx]
+		}
+		tw.Cfg.TermForeground = strings.TrimSpace(entryTermFg.Text())
+		tw.Cfg.TermBackground = strings.TrimSpace(entryTermBg.Text())
+
+		var newPalette []string
+		for i := 0; i < 16; i++ {
+			newPalette = append(newPalette, strings.TrimSpace(entryPalette[i].Text()))
+		}
+		tw.Cfg.TermPalette = newPalette
+
+		// Save configuration
 		_ = config.SaveConfig(tw.Cfg)
 
-		// Apply configuration to all active terminals immediately
-		for _, tab := range tw.TabInstances {
-			tw.applyConfigToInstance(tab.TermInst)
-			tab.TermInst.SetScrollbackLines(tw.Cfg.ScrollbackLines)
-			tab.TermInst.SetCursorBlinkMode(tw.Cfg.CursorBlinkMode)
-			tab.TermInst.SetCursorShape(tw.Cfg.CursorShape)
+		// 1. Reload the Global CSS Provider instantly
+		if GlobalCSSProvider != nil {
+			GlobalCSSProvider.LoadFromData(theme.GetCSS(tw.Cfg))
+		}
+
+		// 2. Apply config updates to all tabs in all active windows instantly
+		for w := range activeWindows {
+			w.Cfg = tw.Cfg
+			for _, tab := range w.TabInstances {
+				w.applyConfigToInstance(tab.TermInst)
+				tab.TermInst.SetScrollbackLines(w.Cfg.ScrollbackLines)
+				tab.TermInst.SetCursorBlinkMode(w.Cfg.CursorBlinkMode)
+				tab.TermInst.SetCursorShape(w.Cfg.CursorShape)
+			}
 		}
 
 		dialog.Close()

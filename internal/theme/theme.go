@@ -1,20 +1,149 @@
 package theme
 
+import (
+	"fmt"
+	"strconv"
+	"strings"
+
+	"zet-terminal/internal/config"
+)
+
 type ColorPalette struct {
 	Foreground string
 	Background string
 	Palette    []string // 16 ANSI colors
 }
 
-var DefaultPalette = &ColorPalette{
-	Foreground: "#e0e0e0",
-	Background: "#121212",
-	Palette: []string{
-		"#1c1c1c", "#d32f2f", "#388e3c", "#fbc02d", // 0-3
-		"#1976d2", "#7b1fa2", "#0097a7", "#bdbdbd", // 4-7
-		"#424242", "#ef5350", "#66bb6a", "#fff59d", // 8-11
-		"#42a5f5", "#ab47bc", "#26c6da", "#ffffff", // 12-15
+var TerminalPresets = map[string]*ColorPalette{
+	"default": {
+		Foreground: "#e0e0e0",
+		Background: "#121212",
+		Palette: []string{
+			"#1c1c1c", "#d32f2f", "#388e3c", "#fbc02d",
+			"#1976d2", "#7b1fa2", "#0097a7", "#bdbdbd",
+			"#424242", "#ef5350", "#66bb6a", "#fff59d",
+			"#42a5f5", "#ab47bc", "#26c6da", "#ffffff",
+		},
 	},
+	"nord": {
+		Foreground: "#d8dee9",
+		Background: "#2e3440",
+		Palette: []string{
+			"#3b4252", "#bf616a", "#a3be8c", "#ebcb8b",
+			"#81a1c1", "#b48ead", "#88c0d0", "#e5e9f0",
+			"#4c566a", "#bf616a", "#a3be8c", "#ebcb8b",
+			"#81a1c1", "#b48ead", "#8fbcbb", "#eceff4",
+		},
+	},
+	"gruvbox": {
+		Foreground: "#ebdbb2",
+		Background: "#282828",
+		Palette: []string{
+			"#282828", "#cc241d", "#98971a", "#d79921",
+			"#458588", "#b16286", "#689d6a", "#a89984",
+			"#928374", "#fb4934", "#b8bb26", "#fabd2f",
+			"#83a598", "#d3869b", "#8ec07c", "#ebdbb2",
+		},
+	},
+	"solarized": {
+		Foreground: "#839496",
+		Background: "#002b36",
+		Palette: []string{
+			"#073642", "#dc322f", "#859900", "#b58900",
+			"#268bd2", "#d33682", "#2aa198", "#eee8d5",
+			"#002b36", "#cb4b16", "#586e75", "#657b83",
+			"#839496", "#6c71c4", "#93a1a1", "#fdf6e3",
+		},
+	},
+	"monokai": {
+		Foreground: "#f8f8f2",
+		Background: "#272822",
+		Palette: []string{
+			"#272822", "#f92672", "#a6e22e", "#f4bf75",
+			"#66d9ef", "#ae81ff", "#a1efe4", "#f8f8f2",
+			"#75715e", "#f92672", "#a6e22e", "#f4bf75",
+			"#66d9ef", "#ae81ff", "#a1efe4", "#f9f8f5",
+		},
+	},
+	"onehalf": {
+		Foreground: "#abb2bf",
+		Background: "#282c34",
+		Palette: []string{
+			"#282c34", "#e06c75", "#98c379", "#d19a66",
+			"#61afef", "#c678dd", "#56b6c2", "#abb2bf",
+			"#5c6370", "#e06c75", "#98c379", "#d19a66",
+			"#61afef", "#c678dd", "#56b6c2", "#ffffff",
+		},
+	},
+}
+
+var AccentPresets = map[string]string{
+	"cyan":    "#38bdf8",
+	"purple":  "#c084fc",
+	"emerald": "#34d399",
+	"amber":   "#fbbf24",
+	"crimson": "#f43f5e",
+	"steel":   "#94a3b8",
+}
+
+func GetTerminalPalette(cfg *config.Config) *ColorPalette {
+	if cfg.TermThemePreset == "custom" {
+		return &ColorPalette{
+			Foreground: cfg.TermForeground,
+			Background: cfg.TermBackground,
+			Palette:    cfg.TermPalette,
+		}
+	}
+	preset, ok := TerminalPresets[cfg.TermThemePreset]
+	if ok {
+		return preset
+	}
+	return TerminalPresets["default"]
+}
+
+func hexToRGBA(hex string, alpha float64) string {
+	hex = strings.TrimPrefix(hex, "#")
+	if len(hex) == 3 {
+		hex = string([]byte{hex[0], hex[0], hex[1], hex[1], hex[2], hex[2]})
+	}
+	if len(hex) != 6 {
+		return fmt.Sprintf("rgba(56, 189, 248, %g)", alpha)
+	}
+	r, _ := strconv.ParseInt(hex[0:2], 16, 32)
+	g, _ := strconv.ParseInt(hex[2:4], 16, 32)
+	b, _ := strconv.ParseInt(hex[4:6], 16, 32)
+	return fmt.Sprintf("rgba(%d, %d, %d, %g)", r, g, b, alpha)
+}
+
+func GetCSS(cfg *config.Config) string {
+	accent := AccentPresets[cfg.UIThemeAccent]
+	if cfg.UIThemeAccent == "custom" {
+		accent = cfg.CustomAccentColor
+	}
+	if accent == "" {
+		accent = "#38bdf8"
+	}
+
+	glow := hexToRGBA(accent, 0.4)
+	if cfg.UIThemeAccent == "custom" && cfg.CustomGlowColor != "" {
+		glow = cfg.CustomGlowColor
+	}
+
+	bgGlow := hexToRGBA(accent, 0.08)
+	bgGlowActive := hexToRGBA(accent, 0.15)
+	borderDim := hexToRGBA(accent, 0.15)
+	borderHover := hexToRGBA(accent, 0.35)
+	shadowGlow := hexToRGBA(accent, 0.15)
+
+	css := strings.ReplaceAll(TerminalCSS, "__ACCENT_COLOR__", accent)
+	css = strings.ReplaceAll(css, "__ACCENT_GLOW__", glow)
+	css = strings.ReplaceAll(css, "__ACCENT_BG_GLOW__", bgGlow)
+	css = strings.ReplaceAll(css, "__ACCENT_BG_ACTIVE__", bgGlowActive)
+	css = strings.ReplaceAll(css, "__ACCENT_BORDER_DIM__", borderDim)
+	css = strings.ReplaceAll(css, "__ACCENT_BORDER_HOVER__", borderHover)
+	css = strings.ReplaceAll(css, "__ACCENT_SHADOW_GLOW__", shadowGlow)
+
+	return css
 }
 
 const TerminalCSS = `
@@ -109,7 +238,7 @@ window.settings-dialog {
 	font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 	font-size: 10px;
 	font-weight: 800;
-	color: #38bdf8;
+	color: __ACCENT_COLOR__;
 	margin-top: 8px;
 	margin-bottom: 12px;
 	letter-spacing: 1px;
@@ -137,7 +266,7 @@ window.settings-dialog {
 }
 
 .settings-entry:focus {
-	border-color: #38bdf8;
+	border-color: __ACCENT_COLOR__;
 	outline: none;
 }
 
@@ -149,7 +278,6 @@ window.settings-dialog {
 	padding: 4px;
 	font-size: 11px;
 }
-
 
 /* ─── VTE Terminal Widget Container ─── */
 .terminal-container {
@@ -241,13 +369,13 @@ window.settings-dialog {
 
 .sidebar-arrow-btn:hover {
 	opacity: 1.0;
-	background: rgba(56, 189, 248, 0.1);
+	background: __ACCENT_BG_GLOW__;
 	border-radius: 4px;
 }
 
 .sidebar-arrow-label {
 	font-size: 11px;
-	color: #38bdf8;
+	color: __ACCENT_COLOR__;
 	font-weight: 700;
 }
 
@@ -293,8 +421,8 @@ popover > contents {
 }
 
 .workspace-action-btn {
-	background: rgba(56, 189, 248, 0.08);
-	border: 1px solid rgba(56, 189, 248, 0.15);
+	background: __ACCENT_BG_GLOW__;
+	border: 1px solid __ACCENT_BORDER_DIM__;
 	border-radius: 6px;
 	padding: 6px 12px;
 	margin-bottom: 14px;
@@ -302,15 +430,15 @@ popover > contents {
 }
 
 .workspace-action-btn:hover {
-	background: rgba(56, 189, 248, 0.16);
-	border-color: rgba(56, 189, 248, 0.35);
-	box-shadow: 0 2px 8px rgba(56, 189, 248, 0.15);
+	background: __ACCENT_BG_ACTIVE__;
+	border-color: __ACCENT_BORDER_HOVER__;
+	box-shadow: 0 2px 8px __ACCENT_SHADOW_GLOW__;
 }
 
 .workspace-action-label {
 	font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 	font-size: 11px;
-	color: #38bdf8;
+	color: __ACCENT_COLOR__;
 	font-weight: 700;
 	letter-spacing: 0.5px;
 }
@@ -399,8 +527,8 @@ popover > contents {
 }
 
 .tab-row.active {
-	background: linear-gradient(to right, rgba(56, 189, 248, 0.15), rgba(56, 189, 248, 0.02));
-	border-left: 3px solid #38bdf8;
+	background: linear-gradient(to right, __ACCENT_BG_ACTIVE__, rgba(255, 255, 255, 0.02));
+	border-left: 3px solid __ACCENT_COLOR__;
 	border-radius: 0 4px 4px 0;
 }
 
@@ -422,7 +550,7 @@ popover > contents {
 }
 
 .tab-row.active .tab-label {
-	color: #38bdf8;
+	color: __ACCENT_COLOR__;
 	font-weight: 700;
 }
 
@@ -533,7 +661,7 @@ scrollbar slider {
 	transition: background-color 0.2s ease;
 }
 scrollbar slider:hover {
-	background-color: rgba(56, 189, 248, 0.4);
+	background-color: __ACCENT_GLOW__;
 }
 
 /* Styled sidebar popover text input fields */
@@ -566,7 +694,7 @@ scrollbar slider:hover {
 }
 
 .sidebar-inline-entry:focus {
-	border-color: #38bdf8;
+	border-color: __ACCENT_COLOR__;
 }
 
 .sidebar-inline-btn {
@@ -589,4 +717,3 @@ scrollbar slider:hover {
 	color: #ffffff;
 }
 `
-
