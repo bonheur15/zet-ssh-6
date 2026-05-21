@@ -27,7 +27,8 @@ type TerminalWindow struct {
 	HistoryRevealer  *gtk.Revealer
 	HistoryHeaderBtn *gtk.Button
 	HistoryArrowLbl  *gtk.Label
-	PopoverActive    bool
+	isCreatingGroup    bool
+	renamingGroupIndex int // -1 if not renaming
 	sidebarTimeoutID glib.SourceHandle
 }
 
@@ -38,10 +39,11 @@ func NewTerminalWindow(app *gtk.Application, cfg *config.Config) *TerminalWindow
 	win.AddCSSClass("terminal-window")
 
 	tw := &TerminalWindow{
-		Win:          win,
-		App:          app,
-		Cfg:          cfg,
-		TabInstances: make(map[string]*TabInstance),
+		Win:                win,
+		App:                app,
+		Cfg:                cfg,
+		TabInstances:       make(map[string]*TabInstance),
+		renamingGroupIndex: -1,
 	}
 
 	tw.setupUI()

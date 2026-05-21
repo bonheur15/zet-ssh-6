@@ -90,7 +90,7 @@ func (tw *TerminalWindow) setupSideDock() {
 		}
 		tw.sidebarTimeoutID = glib.TimeoutAdd(250, func() bool {
 			tw.sidebarTimeoutID = 0
-			if !tw.SidebarPinned && !tw.PopoverActive {
+			if !tw.SidebarPinned && !tw.isCreatingGroup && tw.renamingGroupIndex == -1 {
 				tw.Revealer.SetRevealChild(false)
 			}
 			return false
@@ -146,16 +146,88 @@ func (tw *TerminalWindow) renderWorkspace() {
 		tw.WorkspaceBox.Remove(child)
 	}
 
-	// Create Group Button
-	btnNewGroup := gtk.NewButton()
-	btnNewGroup.AddCSSClass("workspace-action-btn")
-	lblNewGroup := gtk.NewLabel("+ New Group")
-	lblNewGroup.AddCSSClass("workspace-action-label")
-	btnNewGroup.SetChild(lblNewGroup)
-	btnNewGroup.ConnectClicked(func() {
-		tw.promptCreateGroup()
-	})
-	tw.WorkspaceBox.Append(btnNewGroup)
+	// Create Group Button or Inline Entry
+	if tw.isCreatingGroup {
+		createRow := gtk.NewBox(gtk.OrientationHorizontal, 4)
+		createRow.AddCSSClass("sidebar-inline-edit-row")
+		createRow.SetHExpand(true)
+
+		entry := gtk.NewEntry()
+		entry.AddCSSClass("sidebar-inline-entry")
+		entry.SetPlaceholderText("Group Name")
+		entry.SetHExpand(true)
+
+		glib.IdleAdd(func() {
+			entry.GrabFocus()
+		})
+
+		btnSave := gtk.NewButton()
+		btnSave.AddCSSClass("sidebar-inline-btn")
+		btnSave.SetTooltipText("Save Group")
+		imgSave := gtk.NewImageFromIconName("emblem-ok-symbolic")
+		btnSave.SetChild(imgSave)
+
+		btnCancel := gtk.NewButton()
+		btnCancel.AddCSSClass("sidebar-inline-btn")
+		btnCancel.SetTooltipText("Cancel")
+		imgCancel := gtk.NewImageFromIconName("window-close-symbolic")
+		btnCancel.SetChild(imgCancel)
+
+		createRow.Append(entry)
+		createRow.Append(btnSave)
+		createRow.Append(btnCancel)
+
+		saveFunc := func() {
+			name := entry.Text()
+			if name == "" {
+				name = "New Group"
+			}
+			groupID := fmt.Sprintf("group-%d", time.Now().UnixNano())
+			newGroup := config.GroupConfig{
+				ID:        groupID,
+				Name:      name,
+				Collapsed: false,
+				Tabs:      []config.TabConfig{},
+			}
+			tw.Cfg.TabGroups = append(tw.Cfg.TabGroups, newGroup)
+			_ = config.SaveConfig(tw.Cfg)
+			tw.isCreatingGroup = false
+			tw.renderWorkspace()
+		}
+
+		cancelFunc := func() {
+			tw.isCreatingGroup = false
+			tw.renderWorkspace()
+		}
+
+		entry.ConnectActivate(saveFunc)
+
+		keyCtrl := gtk.NewEventControllerKey()
+		keyCtrl.ConnectKeyPressed(func(keyval uint, keycode uint, state gdk.ModifierType) bool {
+			if keyval == gdk.KEY_Escape {
+				cancelFunc()
+				return true
+			}
+			return false
+		})
+		entry.AddController(keyCtrl)
+
+		btnSave.ConnectClicked(saveFunc)
+		btnCancel.ConnectClicked(cancelFunc)
+
+		tw.WorkspaceBox.Append(createRow)
+	} else {
+		btnNewGroup := gtk.NewButton()
+		btnNewGroup.AddCSSClass("workspace-action-btn")
+		lblNewGroup := gtk.NewLabel("+ New Group")
+		lblNewGroup.AddCSSClass("workspace-action-label")
+		btnNewGroup.SetChild(lblNewGroup)
+		btnNewGroup.ConnectClicked(func() {
+			tw.isCreatingGroup = true
+			tw.renderWorkspace()
+		})
+		tw.WorkspaceBox.Append(btnNewGroup)
+	}
 
 	// Render Groups and Tabs
 	for gIdx, group := range tw.Cfg.TabGroups {
@@ -164,70 +236,139 @@ func (tw *TerminalWindow) renderWorkspace() {
 
 		groupContainer := gtk.NewBox(gtk.OrientationVertical, 0)
 
-		headerRow := gtk.NewBox(gtk.OrientationHorizontal, 0)
-		headerRow.AddCSSClass("group-header-row")
-		headerRow.SetHExpand(true)
+		var toggleBtn *gtk.Button
 
-		btnToggle := gtk.NewButton()
-		btnToggle.AddCSSClass("group-toggle-btn")
-		arrowStr := "▼"
-		if groupConfig.Collapsed {
-			arrowStr = "▶"
+		if groupIndex == tw.renamingGroupIndex {
+			renameRow := gtk.NewBox(gtk.OrientationHorizontal, 4)
+			renameRow.AddCSSClass("sidebar-inline-edit-row")
+			renameRow.SetHExpand(true)
+
+			entry := gtk.NewEntry()
+			entry.AddCSSClass("sidebar-inline-entry")
+			entry.SetText(groupConfig.Name)
+			entry.SetHExpand(true)
+
+			glib.IdleAdd(func() {
+				entry.GrabFocus()
+			})
+
+			btnSave := gtk.NewButton()
+			btnSave.AddCSSClass("sidebar-inline-btn")
+			btnSave.SetTooltipText("Save Name")
+			imgSave := gtk.NewImageFromIconName("emblem-ok-symbolic")
+			btnSave.SetChild(imgSave)
+
+			btnCancel := gtk.NewButton()
+			btnCancel.AddCSSClass("sidebar-inline-btn")
+			btnCancel.SetTooltipText("Cancel")
+			imgCancel := gtk.NewImageFromIconName("window-close-symbolic")
+			btnCancel.SetChild(imgCancel)
+
+			renameRow.Append(entry)
+			renameRow.Append(btnSave)
+			renameRow.Append(btnCancel)
+
+			saveFunc := func() {
+				name := entry.Text()
+				if name != "" {
+					tw.Cfg.TabGroups[groupIndex].Name = name
+					_ = config.SaveConfig(tw.Cfg)
+				}
+				tw.renamingGroupIndex = -1
+				tw.renderWorkspace()
+			}
+
+			cancelFunc := func() {
+				tw.renamingGroupIndex = -1
+				tw.renderWorkspace()
+			}
+
+			entry.ConnectActivate(saveFunc)
+
+			keyCtrl := gtk.NewEventControllerKey()
+			keyCtrl.ConnectKeyPressed(func(keyval uint, keycode uint, state gdk.ModifierType) bool {
+				if keyval == gdk.KEY_Escape {
+					cancelFunc()
+					return true
+				}
+				return false
+			})
+			entry.AddController(keyCtrl)
+
+			btnSave.ConnectClicked(saveFunc)
+			btnCancel.ConnectClicked(cancelFunc)
+
+			groupContainer.Append(renameRow)
+		} else {
+			headerRow := gtk.NewBox(gtk.OrientationHorizontal, 0)
+			headerRow.AddCSSClass("group-header-row")
+			headerRow.SetHExpand(true)
+
+			btnToggle := gtk.NewButton()
+			btnToggle.AddCSSClass("group-toggle-btn")
+			arrowStr := "▼"
+			if groupConfig.Collapsed {
+				arrowStr = "▶"
+			}
+			lblToggle := gtk.NewLabel(arrowStr)
+			lblToggle.AddCSSClass("group-toggle-label")
+			btnToggle.SetChild(lblToggle)
+			headerRow.Append(btnToggle)
+			toggleBtn = btnToggle
+
+			lblTitle := gtk.NewLabel(groupConfig.Name)
+			lblTitle.AddCSSClass("group-title-label")
+			lblTitle.SetHAlign(gtk.AlignStart)
+			lblTitle.SetHExpand(true)
+			headerRow.Append(lblTitle)
+
+			// Create New Tab inside this group (+ Tab)
+			btnNewTab := gtk.NewButton()
+			btnNewTab.AddCSSClass("group-action-btn")
+			btnNewTab.SetTooltipText("Add tab")
+			imgNewTab := gtk.NewImageFromIconName("list-add-symbolic")
+			btnNewTab.SetChild(imgNewTab)
+			btnNewTab.ConnectClicked(func() {
+				tw.createTabInGroup(groupConfig.ID)
+			})
+			headerRow.Append(btnNewTab)
+
+			// Rename Group button (Rename)
+			btnRenameGroup := gtk.NewButton()
+			btnRenameGroup.AddCSSClass("group-action-btn")
+			btnRenameGroup.SetTooltipText("Rename group")
+			imgRenameGroup := gtk.NewImageFromIconName("document-edit-symbolic")
+			btnRenameGroup.SetChild(imgRenameGroup)
+			btnRenameGroup.ConnectClicked(func() {
+				tw.renamingGroupIndex = groupIndex
+				tw.renderWorkspace()
+			})
+			headerRow.Append(btnRenameGroup)
+
+			// Delete Group button (Delete)
+			btnDelGroup := gtk.NewButton()
+			btnDelGroup.AddCSSClass("group-action-btn")
+			btnDelGroup.SetTooltipText("Delete group")
+			imgDelGroup := gtk.NewImageFromIconName("user-trash-symbolic")
+			btnDelGroup.SetChild(imgDelGroup)
+			btnDelGroup.ConnectClicked(func() {
+				tw.deleteGroup(groupIndex)
+			})
+			headerRow.Append(btnDelGroup)
+
+			groupContainer.Append(headerRow)
 		}
-		lblToggle := gtk.NewLabel(arrowStr)
-		lblToggle.AddCSSClass("group-toggle-label")
-		btnToggle.SetChild(lblToggle)
-		headerRow.Append(btnToggle)
-
-		lblTitle := gtk.NewLabel(groupConfig.Name)
-		lblTitle.AddCSSClass("group-title-label")
-		lblTitle.SetHAlign(gtk.AlignStart)
-		lblTitle.SetHExpand(true)
-		headerRow.Append(lblTitle)
-
-		// Create New Tab inside this group (+ Tab)
-		btnNewTab := gtk.NewButton()
-		btnNewTab.AddCSSClass("group-action-btn")
-		btnNewTab.SetTooltipText("Add tab")
-		imgNewTab := gtk.NewImageFromIconName("list-add-symbolic")
-		btnNewTab.SetChild(imgNewTab)
-		btnNewTab.ConnectClicked(func() {
-			tw.createTabInGroup(groupConfig.ID)
-		})
-		headerRow.Append(btnNewTab)
-
-		// Rename Group button (Rename)
-		btnRenameGroup := gtk.NewButton()
-		btnRenameGroup.AddCSSClass("group-action-btn")
-		btnRenameGroup.SetTooltipText("Rename group")
-		imgRenameGroup := gtk.NewImageFromIconName("document-edit-symbolic")
-		btnRenameGroup.SetChild(imgRenameGroup)
-		btnRenameGroup.ConnectClicked(func() {
-			tw.promptRenameGroup(groupIndex)
-		})
-		headerRow.Append(btnRenameGroup)
-
-		// Delete Group button (Delete)
-		btnDelGroup := gtk.NewButton()
-		btnDelGroup.AddCSSClass("group-action-btn")
-		btnDelGroup.SetTooltipText("Delete group")
-		imgDelGroup := gtk.NewImageFromIconName("user-trash-symbolic")
-		btnDelGroup.SetChild(imgDelGroup)
-		btnDelGroup.ConnectClicked(func() {
-			tw.deleteGroup(groupIndex)
-		})
-		headerRow.Append(btnDelGroup)
-
-		groupContainer.Append(headerRow)
 
 		childrenBox := gtk.NewBox(gtk.OrientationVertical, 2)
 		childrenBox.SetVisible(!groupConfig.Collapsed)
 
-		btnToggle.ConnectClicked(func() {
-			tw.Cfg.TabGroups[groupIndex].Collapsed = !tw.Cfg.TabGroups[groupIndex].Collapsed
-			_ = config.SaveConfig(tw.Cfg)
-			tw.renderWorkspace()
-		})
+		if toggleBtn != nil {
+			toggleBtn.ConnectClicked(func() {
+				tw.Cfg.TabGroups[groupIndex].Collapsed = !tw.Cfg.TabGroups[groupIndex].Collapsed
+				_ = config.SaveConfig(tw.Cfg)
+				tw.renderWorkspace()
+			})
+		}
 
 		for _, tabCfg := range groupConfig.Tabs {
 			tabConfig := tabCfg
@@ -276,65 +417,6 @@ func (tw *TerminalWindow) renderWorkspace() {
 	}
 }
 
-func (tw *TerminalWindow) promptCreateGroup() {
-	tw.PopoverActive = true
-
-	popover := gtk.NewPopover()
-	popover.SetParent(tw.WorkspaceBox)
-	popover.SetHasArrow(true)
-
-	popover.ConnectClosed(func() {
-		tw.PopoverActive = false
-		if !tw.SidebarPinned {
-			tw.Revealer.SetRevealChild(false)
-		}
-	})
-
-	box := gtk.NewBox(gtk.OrientationVertical, 8)
-	box.SetMarginBottom(8)
-	box.SetMarginTop(8)
-	box.SetMarginStart(8)
-	box.SetMarginEnd(8)
-
-	lbl := gtk.NewLabel("Group Name:")
-	lbl.AddCSSClass("menu-item-label")
-	lbl.SetHAlign(gtk.AlignStart)
-	box.Append(lbl)
-
-	entry := gtk.NewEntry()
-	entry.AddCSSClass("sidebar-entry")
-	entry.SetPlaceholderText("SSH, Dev, etc.")
-	box.Append(entry)
-
-	btnCreate := gtk.NewButton()
-	btnCreate.AddCSSClass("workspace-action-btn")
-	lblCreate := gtk.NewLabel("Create")
-	lblCreate.AddCSSClass("workspace-action-label")
-	btnCreate.SetChild(lblCreate)
-
-	btnCreate.ConnectClicked(func() {
-		name := entry.Text()
-		if name == "" {
-			name = "New Group"
-		}
-		groupID := fmt.Sprintf("group-%d", time.Now().UnixNano())
-		newGroup := config.GroupConfig{
-			ID:        groupID,
-			Name:      name,
-			Collapsed: false,
-			Tabs:      []config.TabConfig{},
-		}
-		tw.Cfg.TabGroups = append(tw.Cfg.TabGroups, newGroup)
-		_ = config.SaveConfig(tw.Cfg)
-		tw.renderWorkspace()
-		popover.Popdown()
-	})
-	box.Append(btnCreate)
-
-	popover.SetChild(box)
-	popover.Popup()
-}
-
 func (tw *TerminalWindow) createTabInGroup(groupID string) {
 	tabID := fmt.Sprintf("tab-%d", time.Now().UnixNano())
 	tabName := "Console"
@@ -352,57 +434,6 @@ func (tw *TerminalWindow) createTabInGroup(groupID string) {
 			break
 		}
 	}
-}
-
-func (tw *TerminalWindow) promptRenameGroup(groupIndex int) {
-	tw.PopoverActive = true
-
-	popover := gtk.NewPopover()
-	popover.SetParent(tw.WorkspaceBox)
-	popover.SetHasArrow(true)
-
-	popover.ConnectClosed(func() {
-		tw.PopoverActive = false
-		if !tw.SidebarPinned {
-			tw.Revealer.SetRevealChild(false)
-		}
-	})
-
-	box := gtk.NewBox(gtk.OrientationVertical, 8)
-	box.SetMarginBottom(8)
-	box.SetMarginTop(8)
-	box.SetMarginStart(8)
-	box.SetMarginEnd(8)
-
-	lbl := gtk.NewLabel("Rename Group:")
-	lbl.AddCSSClass("menu-item-label")
-	lbl.SetHAlign(gtk.AlignStart)
-	box.Append(lbl)
-
-	entry := gtk.NewEntry()
-	entry.AddCSSClass("sidebar-entry")
-	entry.SetText(tw.Cfg.TabGroups[groupIndex].Name)
-	box.Append(entry)
-
-	btnSave := gtk.NewButton()
-	btnSave.AddCSSClass("workspace-action-btn")
-	lblSave := gtk.NewLabel("Save")
-	lblSave.AddCSSClass("workspace-action-label")
-	btnSave.SetChild(lblSave)
-
-	btnSave.ConnectClicked(func() {
-		name := entry.Text()
-		if name != "" {
-			tw.Cfg.TabGroups[groupIndex].Name = name
-			_ = config.SaveConfig(tw.Cfg)
-			tw.renderWorkspace()
-		}
-		popover.Popdown()
-	})
-	box.Append(btnSave)
-
-	popover.SetChild(box)
-	popover.Popup()
 }
 
 func (tw *TerminalWindow) deleteGroup(groupIndex int) {

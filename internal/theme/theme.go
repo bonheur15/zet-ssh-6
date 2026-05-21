@@ -60,14 +60,16 @@ headerbar windowcontrols button > contents {
 	margin: 0px 2px;
 	min-height: 22px;
 	min-width: 22px;
+}
+
+headerbar .header-btn,
+headerbar .header-btn > contents {
 	background: transparent;
 	border: none;
 	box-shadow: none;
 }
 
-headerbar image,
-headerbar button image,
-headerbar windowcontrols button image {
+headerbar .header-btn image {
 	-gtk-icon-size: 14px;
 	min-width: 14px;
 	min-height: 14px;
@@ -534,6 +536,48 @@ scrollbar slider:hover {
 	padding: 6px 10px;
 	margin-bottom: 8px;
 	transition: all 0.2s ease;
+}
+
+.sidebar-inline-edit-row {
+	background: rgba(255, 255, 255, 0.03);
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	border-radius: 6px;
+	padding: 4px;
+	margin-top: 6px;
+	margin-bottom: 6px;
+}
+
+.sidebar-inline-entry {
+	background: rgba(0, 0, 0, 0.2);
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 4px;
+	color: #f1f5f9;
+	padding: 3px 6px;
+	font-size: 11px;
+}
+
+.sidebar-inline-entry:focus {
+	border-color: #38bdf8;
+}
+
+.sidebar-inline-btn {
+	background: transparent;
+	border: none;
+	border-radius: 4px;
+	padding: 4px 6px;
+	transition: background-color 0.2s ease;
+}
+
+.sidebar-inline-btn:hover {
+	background: rgba(255, 255, 255, 0.08);
+}
+
+.sidebar-inline-btn image {
+	color: #cbd5e1;
+}
+
+.sidebar-inline-btn:hover image {
+	color: #ffffff;
 }
 `
 
