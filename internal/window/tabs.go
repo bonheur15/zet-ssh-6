@@ -587,6 +587,41 @@ func (tw *TerminalWindow) GetActiveTabGroupID() string {
 	return ""
 }
 
+func (tw *TerminalWindow) CycleTab(forward bool) {
+	var tabs []string
+	for _, group := range tw.Cfg.TabGroups {
+		for _, tab := range group.Tabs {
+			if _, ok := tw.TabInstances[tab.ID]; ok {
+				tabs = append(tabs, tab.ID)
+			}
+		}
+	}
+	if len(tabs) <= 1 {
+		return
+	}
+
+	currIdx := -1
+	for i, id := range tabs {
+		if id == tw.ActiveTabID {
+			currIdx = i
+			break
+		}
+	}
+
+	if currIdx == -1 {
+		return
+	}
+
+	var nextIdx int
+	if forward {
+		nextIdx = (currIdx + 1) % len(tabs)
+	} else {
+		nextIdx = (currIdx - 1 + len(tabs)) % len(tabs)
+	}
+
+	tw.ActivateTab(tabs[nextIdx])
+}
+
 func (tw *TerminalWindow) CreateNewTabInGroup(groupID string, workingDir string, activateOnWindow *TerminalWindow) string {
 	tabID := fmt.Sprintf("tab-%d", time.Now().UnixNano())
 	tabName := "Console"

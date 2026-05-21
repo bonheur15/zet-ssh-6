@@ -204,61 +204,91 @@ func (tw *TerminalWindow) setupShortcuts() {
 	keyCtrl := gtk.NewEventControllerKey()
 	keyCtrl.SetPropagationPhase(gtk.PhaseCapture)
 	keyCtrl.ConnectKeyPressed(func(keyval uint, keycode uint, state gdk.ModifierType) bool {
-		isCtrl := (state & gdk.ControlMask) != 0
-		isShift := (state & gdk.ShiftMask) != 0
-		isAlt := (state & gdk.AltMask) != 0
-
-		if isCtrl && isShift {
-			switch keyval {
-			case 'N', 'n': // Ctrl+Shift+N -> New Window
-				dir := tw.getActiveTabDir()
-				groupID := tw.GetActiveTabGroupID()
-				tabID := tw.CreateNewTabInGroup(groupID, dir, nil)
-				NewTerminalWindow(tw.App, tw.Cfg, tabID, dir)
-				return true
-			case 'C', 'c': // Ctrl+Shift+C -> Copy active selection
-				if activeTab, ok := tw.TabInstances[tw.ActiveTabID]; ok {
-					activeTab.TermInst.Copy()
-				}
-				return true
-			case 'V', 'v': // Ctrl+Shift+V -> Paste system clipboard
-				if activeTab, ok := tw.TabInstances[tw.ActiveTabID]; ok {
-					activeTab.TermInst.Paste()
-				}
-				return true
-			case '+', '=': // Ctrl+Shift++ or Ctrl+Shift+= -> Zoom In
-				tw.Cfg.FontSize++
-				if tw.Cfg.FontSize > 72 {
-					tw.Cfg.FontSize = 72
-				}
-				_ = config.SaveConfig(tw.Cfg)
-				for _, tab := range tw.TabInstances {
-					tw.applyConfigToInstance(tab.TermInst)
-				}
-				return true
-			case '-': // Ctrl+Shift+- -> Zoom Out
-				tw.Cfg.FontSize--
-				if tw.Cfg.FontSize < 4 {
-					tw.Cfg.FontSize = 4
-				}
-				_ = config.SaveConfig(tw.Cfg)
-				for _, tab := range tw.TabInstances {
-					tw.applyConfigToInstance(tab.TermInst)
-				}
-				return true
-			}
+		// New Tab
+		if MatchShortcut(keyval, state, tw.Cfg.Keybindings.NewTab) {
+			tw.createTabInGroup(tw.GetActiveTabGroupID())
+			return true
 		}
 
-		if isCtrl && !isShift && !isAlt {
-			switch keyval {
-			case 'B', 'b': // Ctrl+B -> Toggle Sidebar
-				tw.SidebarPinned = !tw.SidebarPinned
-				tw.Revealer.SetRevealChild(tw.SidebarPinned)
-				if tw.SidebarPinned {
-					tw.renderWorkspace()
-				}
-				return true
+		// New Window
+		if MatchShortcut(keyval, state, tw.Cfg.Keybindings.NewWindow) {
+			dir := tw.getActiveTabDir()
+			groupID := tw.GetActiveTabGroupID()
+			tabID := tw.CreateNewTabInGroup(groupID, dir, nil)
+			NewTerminalWindow(tw.App, tw.Cfg, tabID, dir)
+			return true
+		}
+
+		// Close Tab
+		if MatchShortcut(keyval, state, tw.Cfg.Keybindings.CloseTab) {
+			if tw.ActiveTabID != "" {
+				tw.CloseTab(tw.ActiveTabID)
 			}
+			return true
+		}
+
+		// Next Tab
+		if MatchShortcut(keyval, state, tw.Cfg.Keybindings.NextTab) {
+			tw.CycleTab(true)
+			return true
+		}
+
+		// Previous Tab
+		if MatchShortcut(keyval, state, tw.Cfg.Keybindings.PrevTab) {
+			tw.CycleTab(false)
+			return true
+		}
+
+		// Copy
+		if MatchShortcut(keyval, state, tw.Cfg.Keybindings.Copy) {
+			if activeTab, ok := tw.TabInstances[tw.ActiveTabID]; ok {
+				activeTab.TermInst.Copy()
+			}
+			return true
+		}
+
+		// Paste
+		if MatchShortcut(keyval, state, tw.Cfg.Keybindings.Paste) {
+			if activeTab, ok := tw.TabInstances[tw.ActiveTabID]; ok {
+				activeTab.TermInst.Paste()
+			}
+			return true
+		}
+
+		// Toggle Sidebar
+		if MatchShortcut(keyval, state, tw.Cfg.Keybindings.ToggleSidebar) {
+			tw.SidebarPinned = !tw.SidebarPinned
+			tw.Revealer.SetRevealChild(tw.SidebarPinned)
+			if tw.SidebarPinned {
+				tw.renderWorkspace()
+			}
+			return true
+		}
+
+		// Zoom In
+		if MatchShortcut(keyval, state, tw.Cfg.Keybindings.ZoomIn) {
+			tw.Cfg.FontSize++
+			if tw.Cfg.FontSize > 72 {
+				tw.Cfg.FontSize = 72
+			}
+			_ = config.SaveConfig(tw.Cfg)
+			for _, tab := range tw.TabInstances {
+				tw.applyConfigToInstance(tab.TermInst)
+			}
+			return true
+		}
+
+		// Zoom Out
+		if MatchShortcut(keyval, state, tw.Cfg.Keybindings.ZoomOut) {
+			tw.Cfg.FontSize--
+			if tw.Cfg.FontSize < 4 {
+				tw.Cfg.FontSize = 4
+			}
+			_ = config.SaveConfig(tw.Cfg)
+			for _, tab := range tw.TabInstances {
+				tw.applyConfigToInstance(tab.TermInst)
+			}
+			return true
 		}
 
 		return false

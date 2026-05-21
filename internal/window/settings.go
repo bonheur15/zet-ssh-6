@@ -84,6 +84,24 @@ func colorToHex(btn *gtk.ColorButton) string {
 	return fmt.Sprintf("#%02x%02x%02x", r, g, b)
 }
 
+func createKeybindingField(labelText, value string) (*gtk.Box, *gtk.Entry) {
+	row := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	
+	lbl := gtk.NewLabel(labelText)
+	lbl.AddCSSClass("settings-label")
+	lbl.SetHAlign(gtk.AlignStart)
+	lbl.SetHExpand(true)
+	row.Append(lbl)
+
+	entry := gtk.NewEntry()
+	entry.AddCSSClass("settings-entry")
+	entry.SetWidthChars(16)
+	entry.SetText(value)
+	
+	row.Append(entry)
+	return row, entry
+}
+
 func (tw *TerminalWindow) openSettingsDialog() {
 	dialog := gtk.NewWindow()
 	dialog.SetTitle("Settings")
@@ -357,6 +375,43 @@ func (tw *TerminalWindow) openSettingsDialog() {
 	comboTermTheme.Connect("changed", updateTermVisibility)
 	updateTermVisibility()
 
+	// --- SECTION: KEYBOARD SHORTCUTS ---
+	lblKeybindTitle := gtk.NewLabel("Keyboard Shortcuts")
+	lblKeybindTitle.AddCSSClass("settings-section-title")
+	lblKeybindTitle.SetHAlign(gtk.AlignStart)
+	lblKeybindTitle.SetMarginTop(12)
+	contentBox.Append(lblKeybindTitle)
+
+	rowNewTab, entryNewTab := createKeybindingField("New Tab:", tw.Cfg.Keybindings.NewTab)
+	contentBox.Append(rowNewTab)
+
+	rowNewWindow, entryNewWindow := createKeybindingField("New Window:", tw.Cfg.Keybindings.NewWindow)
+	contentBox.Append(rowNewWindow)
+
+	rowCloseTab, entryCloseTab := createKeybindingField("Close Tab:", tw.Cfg.Keybindings.CloseTab)
+	contentBox.Append(rowCloseTab)
+
+	rowNextTab, entryNextTab := createKeybindingField("Next Tab:", tw.Cfg.Keybindings.NextTab)
+	contentBox.Append(rowNextTab)
+
+	rowPrevTab, entryPrevTab := createKeybindingField("Previous Tab:", tw.Cfg.Keybindings.PrevTab)
+	contentBox.Append(rowPrevTab)
+
+	rowCopy, entryCopy := createKeybindingField("Copy Selection:", tw.Cfg.Keybindings.Copy)
+	contentBox.Append(rowCopy)
+
+	rowPaste, entryPaste := createKeybindingField("Paste Clipboard:", tw.Cfg.Keybindings.Paste)
+	contentBox.Append(rowPaste)
+
+	rowToggleSidebar, entryToggleSidebar := createKeybindingField("Toggle Sidebar:", tw.Cfg.Keybindings.ToggleSidebar)
+	contentBox.Append(rowToggleSidebar)
+
+	rowZoomIn, entryZoomIn := createKeybindingField("Zoom In:", tw.Cfg.Keybindings.ZoomIn)
+	contentBox.Append(rowZoomIn)
+
+	rowZoomOut, entryZoomOut := createKeybindingField("Zoom Out:", tw.Cfg.Keybindings.ZoomOut)
+	contentBox.Append(rowZoomOut)
+
 	// --- BOTTOM BUTTONS: SAVE & CANCEL ---
 	btnBox := gtk.NewBox(gtk.OrientationHorizontal, 12)
 	btnBox.SetHAlign(gtk.AlignEnd)
@@ -381,6 +436,18 @@ func (tw *TerminalWindow) openSettingsDialog() {
 		tw.Cfg.ScrollbackLines = int(spinScrollback.Value())
 		tw.Cfg.FontName = strings.TrimSpace(entryFontName.Text())
 		tw.Cfg.FontSize = int(spinFontSize.Value())
+
+		// Keybindings
+		tw.Cfg.Keybindings.NewTab = strings.TrimSpace(entryNewTab.Text())
+		tw.Cfg.Keybindings.NewWindow = strings.TrimSpace(entryNewWindow.Text())
+		tw.Cfg.Keybindings.CloseTab = strings.TrimSpace(entryCloseTab.Text())
+		tw.Cfg.Keybindings.NextTab = strings.TrimSpace(entryNextTab.Text())
+		tw.Cfg.Keybindings.PrevTab = strings.TrimSpace(entryPrevTab.Text())
+		tw.Cfg.Keybindings.Copy = strings.TrimSpace(entryCopy.Text())
+		tw.Cfg.Keybindings.Paste = strings.TrimSpace(entryPaste.Text())
+		tw.Cfg.Keybindings.ToggleSidebar = strings.TrimSpace(entryToggleSidebar.Text())
+		tw.Cfg.Keybindings.ZoomIn = strings.TrimSpace(entryZoomIn.Text())
+		tw.Cfg.Keybindings.ZoomOut = strings.TrimSpace(entryZoomOut.Text())
 
 		shapeIdx := comboCursorShape.Active()
 		if shapeIdx >= 0 {
