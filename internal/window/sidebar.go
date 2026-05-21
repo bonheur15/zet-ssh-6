@@ -456,7 +456,12 @@ func (tw *TerminalWindow) renderWorkspace() {
 				btnSelectTab.SetHExpand(true)
 				btnSelectTab.SetHAlign(gtk.AlignFill)
 
-				lblTab := gtk.NewLabel(tabConfig.Name)
+				displayName := tabConfig.Name
+				if inst, ok := tw.TabInstances[tabConfig.ID]; ok && inst.Name != "" {
+					displayName = inst.Name
+				}
+
+				lblTab := gtk.NewLabel(displayName)
 				lblTab.AddCSSClass("tab-label")
 				lblTab.SetHAlign(gtk.AlignStart)
 				lblTab.SetXAlign(0.0)

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 
 	"zet-terminal/internal/config"
@@ -55,26 +56,7 @@ func isValidColor(s string) bool {
 	return false
 }
 
-func setupColorPreview(entry *gtk.Entry, preview *gtk.Box) {
-	preview.AddCSSClass("color-preview")
-	provider := gtk.NewCSSProvider()
-	preview.StyleContext().AddProvider(provider, gtk.STYLE_PROVIDER_PRIORITY_USER)
-	updatePreview := func() {
-		color := strings.TrimSpace(entry.Text())
-		if isValidColor(color) {
-			provider.LoadFromData(fmt.Sprintf(
-				".color-preview { background-color: %s; min-width: 16px; min-height: 16px; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.25); }",
-				color,
-			))
-		} else {
-			provider.LoadFromData(".color-preview { background-color: transparent; min-width: 16px; min-height: 16px; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.1); }")
-		}
-	}
-	entry.Connect("changed", updatePreview)
-	updatePreview()
-}
-
-func createColorField(labelText, defaultValue string) (*gtk.Box, *gtk.Entry) {
+func createColorButtonField(labelText, hexValue string) (*gtk.Box, *gtk.ColorButton) {
 	row := gtk.NewBox(gtk.OrientationHorizontal, 8)
 	
 	lbl := gtk.NewLabel(labelText)
@@ -83,20 +65,23 @@ func createColorField(labelText, defaultValue string) (*gtk.Box, *gtk.Entry) {
 	lbl.SetHExpand(true)
 	row.Append(lbl)
 
-	entry := gtk.NewEntry()
-	entry.AddCSSClass("settings-entry")
-	entry.SetText(defaultValue)
+	btn := gtk.NewColorButton()
+	btn.AddCSSClass("settings-entry")
 	
-	preview := gtk.NewBox(gtk.OrientationHorizontal, 0)
-	preview.SetSizeRequest(16, 16)
-	preview.SetVAlign(gtk.AlignCenter)
+	var c gdk.RGBA
+	c.Parse(hexValue)
+	btn.SetRGBA(&c)
 	
-	setupColorPreview(entry, preview)
+	row.Append(btn)
+	return row, btn
+}
 
-	row.Append(entry)
-	row.Append(preview)
-
-	return row, entry
+func colorToHex(btn *gtk.ColorButton) string {
+	rgba := btn.RGBA()
+	r := int(rgba.Red() * 255)
+	g := int(rgba.Green() * 255)
+	b := int(rgba.Blue() * 255)
+	return fmt.Sprintf("#%02x%02x%02x", r, g, b)
 }
 
 func (tw *TerminalWindow) openSettingsDialog() {
@@ -251,12 +236,30 @@ func (tw *TerminalWindow) openSettingsDialog() {
 	// Custom Accent Box (shown only when "Custom" selected)
 	customUIBox := gtk.NewBox(gtk.OrientationVertical, 8)
 	
-	rowCustomAccent, entryCustomAccent := createColorField("Accent Color (Hex):", tw.Cfg.CustomAccentColor)
+	rowCustomAccent, btnCustomAccent := createColorButtonField("Custom Accent Color:", tw.Cfg.CustomAccentColor)
 	customUIBox.Append(rowCustomAccent)
 	
-	rowCustomGlow, entryCustomGlow := createColorField("Accent Glow Color:", tw.Cfg.CustomGlowColor)
+	rowCustomGlow, btnCustomGlow := createColorButtonField("Custom Glow Accent Color:", tw.Cfg.CustomGlowColor)
 	customUIBox.Append(rowCustomGlow)
 	contentBox.Append(customUIBox)
+
+	// Glow Intensity / Opacity slider
+	rowGlowOpacity := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	lblGlowOpacity := gtk.NewLabel("Glow Intensity:")
+	lblGlowOpacity.AddCSSClass("settings-label")
+	lblGlowOpacity.SetHAlign(gtk.AlignStart)
+	lblGlowOpacity.SetHExpand(true)
+
+	adjGlowOpacity := gtk.NewAdjustment(tw.Cfg.UIThemeGlowOpacity*100, 0, 100, 5, 10, 0)
+	scaleGlowOpacity := gtk.NewScale(gtk.OrientationHorizontal, adjGlowOpacity)
+	scaleGlowOpacity.SetHExpand(true)
+	scaleGlowOpacity.SetSizeRequest(160, -1)
+	scaleGlowOpacity.SetDrawValue(true)
+	scaleGlowOpacity.SetValuePos(gtk.PosRight)
+	scaleGlowOpacity.SetDigits(0)
+	rowGlowOpacity.Append(lblGlowOpacity)
+	rowGlowOpacity.Append(scaleGlowOpacity)
+	contentBox.Append(rowGlowOpacity)
 
 	// --- SECTION: TERMINAL THEME & PALETTE ---
 	lblTermTitle := gtk.NewLabel("Terminal Theme")
@@ -288,10 +291,10 @@ func (tw *TerminalWindow) openSettingsDialog() {
 	// Custom Terminal Color Box (shown only when "Custom" selected)
 	customTermBox := gtk.NewBox(gtk.OrientationVertical, 8)
 	
-	rowTermFg, entryTermFg := createColorField("Foreground Color (Hex):", tw.Cfg.TermForeground)
+	rowTermFg, btnTermFg := createColorButtonField("Foreground Color:", tw.Cfg.TermForeground)
 	customTermBox.Append(rowTermFg)
 	
-	rowTermBg, entryTermBg := createColorField("Background Color (Hex):", tw.Cfg.TermBackground)
+	rowTermBg, btnTermBg := createColorButtonField("Background Color:", tw.Cfg.TermBackground)
 	customTermBox.Append(rowTermBg)
 
 	// Palette section
@@ -306,38 +309,35 @@ func (tw *TerminalWindow) openSettingsDialog() {
 	grid.SetRowSpacing(8)
 	grid.SetHAlign(gtk.AlignStart)
 
-	var entryPalette [16]*gtk.Entry
+	var btnPalette [16]*gtk.ColorButton
 	for i := 0; i < 16; i++ {
 		rowVal := i / 4
 		colVal := i % 4
 
 		cell := gtk.NewBox(gtk.OrientationHorizontal, 4)
-		
-		idxLbl := gtk.NewLabel(fmt.Sprintf("%d:", i))
+		cell.SetVAlign(gtk.AlignCenter)
+
+		idxLbl := gtk.NewLabel(fmt.Sprintf("%2d:", i))
 		idxLbl.AddCSSClass("settings-label")
-		idxLbl.SetWidthChars(2)
+		idxLbl.SetWidthChars(3)
 		cell.Append(idxLbl)
 
-		entry := gtk.NewEntry()
-		entry.AddCSSClass("settings-entry")
-		entry.SetWidthChars(7)
+		btn := gtk.NewColorButton()
+		btn.AddCSSClass("settings-entry")
+		btn.SetSizeRequest(36, 24)
+
+		hexVal := "#ffffff"
 		if i < len(tw.Cfg.TermPalette) {
-			entry.SetText(tw.Cfg.TermPalette[i])
-		} else {
-			entry.SetText("#ffffff")
+			hexVal = tw.Cfg.TermPalette[i]
 		}
-
-		preview := gtk.NewBox(gtk.OrientationHorizontal, 0)
-		preview.SetSizeRequest(14, 14)
-		preview.SetVAlign(gtk.AlignCenter)
 		
-		setupColorPreview(entry, preview)
+		var c gdk.RGBA
+		c.Parse(hexVal)
+		btn.SetRGBA(&c)
 
-		cell.Append(entry)
-		cell.Append(preview)
-
+		cell.Append(btn)
 		grid.Attach(cell, colVal, rowVal, 1, 1)
-		entryPalette[i] = entry
+		btnPalette[i] = btn
 	}
 	customTermBox.Append(grid)
 	contentBox.Append(customTermBox)
@@ -397,20 +397,21 @@ func (tw *TerminalWindow) openSettingsDialog() {
 		if accentIdx >= 0 && accentIdx < len(uiAccents) {
 			tw.Cfg.UIThemeAccent = uiAccents[accentIdx]
 		}
-		tw.Cfg.CustomAccentColor = strings.TrimSpace(entryCustomAccent.Text())
-		tw.Cfg.CustomGlowColor = strings.TrimSpace(entryCustomGlow.Text())
+		tw.Cfg.CustomAccentColor = colorToHex(btnCustomAccent)
+		tw.Cfg.CustomGlowColor = colorToHex(btnCustomGlow)
+		tw.Cfg.UIThemeGlowOpacity = scaleGlowOpacity.Value() / 100.0
 
 		// Terminal Theme settings
 		termThemeIdx := comboTermTheme.Active()
 		if termThemeIdx >= 0 && termThemeIdx < len(termThemes) {
 			tw.Cfg.TermThemePreset = termThemes[termThemeIdx]
 		}
-		tw.Cfg.TermForeground = strings.TrimSpace(entryTermFg.Text())
-		tw.Cfg.TermBackground = strings.TrimSpace(entryTermBg.Text())
+		tw.Cfg.TermForeground = colorToHex(btnTermFg)
+		tw.Cfg.TermBackground = colorToHex(btnTermBg)
 
 		var newPalette []string
 		for i := 0; i < 16; i++ {
-			newPalette = append(newPalette, strings.TrimSpace(entryPalette[i].Text()))
+			newPalette = append(newPalette, colorToHex(btnPalette[i]))
 		}
 		tw.Cfg.TermPalette = newPalette
 

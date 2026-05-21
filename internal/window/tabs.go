@@ -71,8 +71,6 @@ func (tw *TerminalWindow) CreateTab(id, name, groupID, workingDir string, saveTo
 
 		autoTitle := tw.getTabAutoTitle(id, title)
 		tab.Name = autoTitle
-		tw.updateTabNameInConfig(id, autoTitle)
-		_ = config.SaveConfig(tw.Cfg)
 
 		if tw.ActiveTabID == id {
 			tw.Win.SetTitle(autoTitle + " - Terminal")
@@ -403,6 +401,36 @@ func getForegroundCommand(shellPID int) string {
 	return ""
 }
 
+func formatMinimalPath(path string) string {
+	path = expandPath(path)
+	home, err := os.UserHomeDir()
+	if err == nil {
+		if path == home {
+			return "~"
+		}
+		if strings.HasPrefix(path, home+"/") {
+			path = "~/" + strings.TrimPrefix(path, home+"/")
+		}
+	}
+
+	parts := strings.Split(path, "/")
+	var cleanParts []string
+	for _, p := range parts {
+		if p != "" {
+			cleanParts = append(cleanParts, p)
+		}
+	}
+
+	if len(cleanParts) == 0 {
+		return "/"
+	}
+
+	if len(cleanParts) >= 2 {
+		return cleanParts[len(cleanParts)-2] + "/" + cleanParts[len(cleanParts)-1]
+	}
+	return cleanParts[len(cleanParts)-1]
+}
+
 func (tw *TerminalWindow) getTabAutoTitle(tabID string, rawTitle string) string {
 	rawTitle = strings.TrimSpace(rawTitle)
 
@@ -411,19 +439,65 @@ func (tw *TerminalWindow) getTabAutoTitle(tabID string, rawTitle string) string 
 		shellPID := inst.TermInst.GetChildPID()
 		if shellPID > 0 {
 			if fgCmd := getForegroundCommand(shellPID); fgCmd != "" {
-				return fgCmd
+				// Ignore basic shells so we can display directory / branch details
+				if fgCmd != "bash" && fgCmd != "zsh" && fgCmd != "fish" && fgCmd != "sh" {
+					return fgCmd
+				}
 			}
 		}
 	}
 
+	// 2. Handle remote sessions or standard prompt title
 	var dirPath string
+	isRemote := false
 	if strings.Contains(rawTitle, "@") && strings.Contains(rawTitle, ":") {
 		parts := strings.SplitN(rawTitle, ":", 2)
 		if len(parts) == 2 {
+			userHost := parts[0]
 			dirPath = strings.TrimSpace(parts[1])
+
+			hostname, _ := os.Hostname()
+			currentUser := os.Getenv("USER")
+
+			isLocal := false
+			if currentUser != "" && hostname != "" {
+				expectedLocal := currentUser + "@" + hostname
+				if userHost == expectedLocal || strings.HasPrefix(userHost, currentUser+"@localhost") {
+					isLocal = true
+				}
+			} else {
+				isLocal = true
+			}
+
+			if !isLocal {
+				isRemote = true
+				hostParts := strings.Split(userHost, "@")
+				host := userHost
+				if len(hostParts) == 2 {
+					host = hostParts[1]
+				}
+				shortDir := dirPath
+				if !strings.HasPrefix(dirPath, "~/") {
+					dirParts := strings.Split(dirPath, "/")
+					if len(dirParts) > 0 {
+						shortDir = dirParts[len(dirParts)-1]
+					}
+				}
+				return fmt.Sprintf("%s:%s", host, shortDir)
+			}
 		}
 	}
 
+	// 3. If the user or app set a custom window title using OSC 2 (e.g. "Gemini Chat", "ssh node1"), use it!
+	if rawTitle != "" && !isRemote {
+		isDefaultShellPrompt := strings.Contains(rawTitle, "@") && strings.Contains(rawTitle, ":")
+		isShellName := rawTitle == "bash" || rawTitle == "zsh" || rawTitle == "fish" || rawTitle == "sh" || rawTitle == "tmux"
+		if !isDefaultShellPrompt && !isShellName {
+			return rawTitle
+		}
+	}
+
+	// 4. Local directory path fallback
 	if dirPath == "" {
 		if inst, ok := tw.TabInstances[tabID]; ok {
 			dirPath = inst.TermInst.GetCurrentDirectory()
@@ -432,15 +506,12 @@ func (tw *TerminalWindow) getTabAutoTitle(tabID string, rawTitle string) string 
 
 	if dirPath != "" {
 		expanded := expandPath(dirPath)
-		baseName := filepath.Base(expanded)
-		if baseName == "." || baseName == "/" {
-			baseName = dirPath
-		}
+		shortPath := formatMinimalPath(expanded)
 		branch := getGitBranch(expanded)
 		if branch != "" {
-			return fmt.Sprintf("%s (%s)", baseName, branch)
+			return fmt.Sprintf("%s  %s", shortPath, branch)
 		}
-		return baseName
+		return shortPath
 	}
 
 	if rawTitle != "" {
@@ -474,6 +545,7 @@ func (tw *TerminalWindow) setTabCustomNameInConfig(tabID string, name string, cu
 }
 
 func (tw *TerminalWindow) updateTabAutoTitles() {
+	needRender := false
 	for id, tab := range tw.TabInstances {
 		if tw.isTabCustomNamed(id) {
 			continue
@@ -483,13 +555,14 @@ func (tw *TerminalWindow) updateTabAutoTitles() {
 		autoTitle := tw.getTabAutoTitle(id, rawTitle)
 		if tab.Name != autoTitle {
 			tab.Name = autoTitle
-			tw.updateTabNameInConfig(id, autoTitle)
-			_ = config.SaveConfig(tw.Cfg)
 			if tw.ActiveTabID == id {
 				tw.Win.SetTitle(autoTitle + " - Terminal")
 			}
-			tw.renderWorkspace()
+			needRender = true
 		}
+	}
+	if needRender {
+		tw.renderWorkspace()
 	}
 }
 
@@ -504,7 +577,7 @@ func (tw *TerminalWindow) getActiveTabDir() string {
 	return activeTab.TermInst.GetCurrentDirectory()
 }
 
-func (tw *TerminalWindow) getActiveTabGroupID() string {
+func (tw *TerminalWindow) GetActiveTabGroupID() string {
 	if activeTab, ok := tw.TabInstances[tw.ActiveTabID]; ok {
 		return activeTab.GroupID
 	}

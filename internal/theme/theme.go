@@ -124,16 +124,24 @@ func GetCSS(cfg *config.Config) string {
 		accent = "#38bdf8"
 	}
 
-	glow := hexToRGBA(accent, 0.4)
-	if cfg.UIThemeAccent == "custom" && cfg.CustomGlowColor != "" {
+	opacity := cfg.UIThemeGlowOpacity
+	if opacity <= 0 {
+		opacity = 0.4
+	}
+
+	glow := hexToRGBA(accent, opacity)
+	if cfg.UIThemeAccent == "custom" && cfg.CustomGlowColor != "" && !strings.Contains(cfg.CustomGlowColor, "rgba") {
+		// If custom glow is hex, parse it with current opacity
+		glow = hexToRGBA(cfg.CustomGlowColor, opacity)
+	} else if cfg.UIThemeAccent == "custom" && cfg.CustomGlowColor != "" {
 		glow = cfg.CustomGlowColor
 	}
 
-	bgGlow := hexToRGBA(accent, 0.08)
-	bgGlowActive := hexToRGBA(accent, 0.15)
-	borderDim := hexToRGBA(accent, 0.15)
-	borderHover := hexToRGBA(accent, 0.35)
-	shadowGlow := hexToRGBA(accent, 0.15)
+	bgGlow := hexToRGBA(accent, opacity*0.2)
+	bgGlowActive := hexToRGBA(accent, opacity*0.375)
+	borderDim := hexToRGBA(accent, opacity*0.375)
+	borderHover := hexToRGBA(accent, opacity*0.875)
+	shadowGlow := hexToRGBA(accent, opacity*0.375)
 
 	css := strings.ReplaceAll(TerminalCSS, "__ACCENT_COLOR__", accent)
 	css = strings.ReplaceAll(css, "__ACCENT_GLOW__", glow)
