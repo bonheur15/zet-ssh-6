@@ -501,22 +501,8 @@ func (tw *TerminalWindow) renderWorkspace() {
 }
 
 func (tw *TerminalWindow) createTabInGroup(groupID string) {
-	tabID := fmt.Sprintf("tab-%d", time.Now().UnixNano())
-	tabName := "Console"
-
-	for i, group := range tw.Cfg.TabGroups {
-		if group.ID == groupID {
-			tw.Cfg.TabGroups[i].Tabs = append(tw.Cfg.TabGroups[i].Tabs, config.TabConfig{
-				ID:   tabID,
-				Name: tabName,
-			})
-			_ = config.SaveConfig(tw.Cfg)
-
-			tw.CreateTab(tabID, tabName, groupID, false)
-			tw.ActivateTab(tabID)
-			break
-		}
-	}
+	dir := tw.getActiveTabDir()
+	tw.CreateNewTabInGroup(groupID, dir, tw)
 }
 
 func (tw *TerminalWindow) deleteGroup(groupIndex int) {

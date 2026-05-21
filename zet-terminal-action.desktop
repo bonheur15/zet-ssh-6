@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Service
+MimeType=inode/directory;
+Actions=openInZetTerminal;
+X-KDE-Priority=TopLevel
+
+[Desktop Action openInZetTerminal]
+Name=Open in Zet Terminal
+Icon=utilities-terminal
+Exec=zet-terminal %f

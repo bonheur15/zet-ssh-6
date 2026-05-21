@@ -49,7 +49,7 @@ func InitGlobalCSS(cfg *config.Config) {
 	)
 }
 
-func NewTerminalWindow(app *gtk.Application, cfg *config.Config) *TerminalWindow {
+func NewTerminalWindow(app *gtk.Application, cfg *config.Config, initialActiveTabID, initialActiveTabDir string) *TerminalWindow {
 	win := gtk.NewApplicationWindow(app)
 	win.SetTitle("Terminal")
 	win.SetDefaultSize(850, 550)
@@ -68,28 +68,41 @@ func NewTerminalWindow(app *gtk.Application, cfg *config.Config) *TerminalWindow
 		delete(activeWindows, tw)
 	})
 
-	tw.setupUI()
+	// If no initial active tab ID is provided, but a directory is provided,
+	// resolve the first tab to be the target for the directory.
+	if initialActiveTabID == "" && initialActiveTabDir != "" {
+		for _, group := range cfg.TabGroups {
+			if len(group.Tabs) > 0 {
+				initialActiveTabID = group.Tabs[0].ID
+				break
+			}
+		}
+	}
+
+	tw.setupUI(initialActiveTabID, initialActiveTabDir)
 	tw.setupShortcuts()
 
 	// Show and present window to grab focus at OS/WM level
 	win.Present()
 
-	// Pick the first loaded tab to activate
-	var firstTabID string
-	for _, group := range tw.Cfg.TabGroups {
-		if len(group.Tabs) > 0 {
-			firstTabID = group.Tabs[0].ID
-			break
+	// Pick the first loaded tab to activate, or the requested initial active tab
+	activeID := initialActiveTabID
+	if activeID == "" {
+		for _, group := range tw.Cfg.TabGroups {
+			if len(group.Tabs) > 0 {
+				activeID = group.Tabs[0].ID
+				break
+			}
 		}
 	}
-	if firstTabID != "" {
-		tw.ActivateTab(firstTabID)
+	if activeID != "" {
+		tw.ActivateTab(activeID)
 	}
 
 	return tw
 }
 
-func (tw *TerminalWindow) setupUI() {
+func (tw *TerminalWindow) setupUI(initialActiveTabID, initialActiveTabDir string) {
 	// Minimalistic Title Bar
 	header := gtk.NewHeaderBar()
 	titleLabel := gtk.NewLabel("Terminal")
@@ -163,7 +176,11 @@ func (tw *TerminalWindow) setupUI() {
 	hasTabsLoaded := false
 	for _, group := range tw.Cfg.TabGroups {
 		for _, tab := range group.Tabs {
-			tw.CreateTab(tab.ID, tab.Name, group.ID, false)
+			dir := ""
+			if tab.ID == initialActiveTabID {
+				dir = initialActiveTabDir
+			}
+			tw.CreateTab(tab.ID, tab.Name, group.ID, dir, false)
 			hasTabsLoaded = true
 		}
 	}
@@ -194,7 +211,10 @@ func (tw *TerminalWindow) setupShortcuts() {
 		if isCtrl && isShift {
 			switch keyval {
 			case 'N', 'n': // Ctrl+Shift+N -> New Window
-				NewTerminalWindow(tw.App, tw.Cfg)
+				dir := tw.getActiveTabDir()
+				groupID := tw.getActiveTabGroupID()
+				tabID := tw.CreateNewTabInGroup(groupID, dir, nil)
+				NewTerminalWindow(tw.App, tw.Cfg, tabID, dir)
 				return true
 			case 'C', 'c': // Ctrl+Shift+C -> Copy active selection
 				if activeTab, ok := tw.TabInstances[tw.ActiveTabID]; ok {

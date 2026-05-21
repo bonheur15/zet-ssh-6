@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
@@ -28,7 +29,7 @@ func (tw *TerminalWindow) applyConfigToInstance(inst *terminal.VteTerminalInstan
 	inst.SetColors(pal.Foreground, pal.Background, pal.Palette)
 }
 
-func (tw *TerminalWindow) CreateTab(id, name, groupID string, saveToConfig bool) *TabInstance {
+func (tw *TerminalWindow) CreateTab(id, name, groupID, workingDir string, saveToConfig bool) *TabInstance {
 	inst := terminal.NewVteTerminal()
 	inst.Widget.AddCSSClass("vte-terminal-widget")
 	inst.Widget.SetHExpand(true)
@@ -51,8 +52,8 @@ func (tw *TerminalWindow) CreateTab(id, name, groupID string, saveToConfig bool)
 	// Add widget to the Stack
 	tw.Stack.AddChild(inst.Widget)
 
-	// Spawn shell
-	inst.SpawnShell(tw.Cfg.Shell, "")
+	// Spawn shell in directory
+	inst.SpawnShell(tw.Cfg.Shell, workingDir)
 
 	// Signal Handlers
 	inst.OnChildExited(func(status int) {
@@ -109,18 +110,29 @@ func (tw *TerminalWindow) ActivateTab(id string) {
 }
 
 func (tw *TerminalWindow) CloseTab(id string) {
-	tab, ok := tw.TabInstances[id]
+	_, ok := tw.TabInstances[id]
 	if !ok {
 		return
 	}
 
-	// Destroy process/bindings
-	tab.TermInst.Destroy()
+	// Remove from config first
+	tw.removeTabFromConfig(id)
 
+	// Close on all windows
+	for w := range activeWindows {
+		w.Cfg = tw.Cfg
+		w.CloseTabSilently(id)
+	}
+}
+
+func (tw *TerminalWindow) CloseTabSilently(id string) {
+	tab, ok := tw.TabInstances[id]
+	if !ok {
+		return
+	}
+	tab.TermInst.Destroy()
 	tw.Stack.Remove(tab.TermInst.Widget)
 	delete(tw.TabInstances, id)
-
-	tw.removeTabFromConfig(id)
 
 	if len(tw.TabInstances) == 0 {
 		tw.Win.Close()
@@ -136,16 +148,6 @@ func (tw *TerminalWindow) CloseTab(id string) {
 	} else {
 		tw.renderWorkspace()
 	}
-}
-
-func (tw *TerminalWindow) CloseTabSilently(id string) {
-	tab, ok := tw.TabInstances[id]
-	if !ok {
-		return
-	}
-	tab.TermInst.Destroy()
-	tw.Stack.Remove(tab.TermInst.Widget)
-	delete(tw.TabInstances, id)
 }
 
 func (tw *TerminalWindow) updateTabNameInConfig(tabID, name string) {
@@ -191,7 +193,7 @@ func (tw *TerminalWindow) createDefaultTabStructure() {
 	}
 	_ = config.SaveConfig(tw.Cfg)
 
-	tw.CreateTab("tab-1", "Primary Console", "group-general", false)
+	tw.CreateTab("tab-1", "Primary Console", "group-general", "", false)
 	tw.ActivateTab("tab-1")
 }
 
@@ -496,4 +498,63 @@ func (tw *TerminalWindow) updateTabAutoTitles() {
 			tw.renderWorkspace()
 		}
 	}
+}
+
+func (tw *TerminalWindow) getActiveTabDir() string {
+	if tw.ActiveTabID == "" {
+		return ""
+	}
+	activeTab, ok := tw.TabInstances[tw.ActiveTabID]
+	if !ok {
+		return ""
+	}
+	uri := activeTab.TermInst.GetCurrentDirectoryURI()
+	if uri == "" {
+		return ""
+	}
+	u := strings.TrimPrefix(uri, "file://")
+	if idx := strings.Index(u, "/"); idx != -1 {
+		u = u[idx:]
+	}
+	return u
+}
+
+func (tw *TerminalWindow) getActiveTabGroupID() string {
+	if activeTab, ok := tw.TabInstances[tw.ActiveTabID]; ok {
+		return activeTab.GroupID
+	}
+	if len(tw.Cfg.TabGroups) > 0 {
+		return tw.Cfg.TabGroups[0].ID
+	}
+	return ""
+}
+
+func (tw *TerminalWindow) CreateNewTabInGroup(groupID string, workingDir string, activateOnWindow *TerminalWindow) string {
+	tabID := fmt.Sprintf("tab-%d", time.Now().UnixNano())
+	tabName := "Console"
+
+	// Add to configuration
+	for i, group := range tw.Cfg.TabGroups {
+		if group.ID == groupID {
+			tw.Cfg.TabGroups[i].Tabs = append(tw.Cfg.TabGroups[i].Tabs, config.TabConfig{
+				ID:   tabID,
+				Name: tabName,
+			})
+			_ = config.SaveConfig(tw.Cfg)
+			break
+		}
+	}
+
+	// Create tab on all active windows
+	for w := range activeWindows {
+		w.Cfg = tw.Cfg
+		w.CreateTab(tabID, tabName, groupID, workingDir, false)
+		if w == activateOnWindow {
+			w.ActivateTab(tabID)
+		} else {
+			w.renderWorkspace()
+		}
+	}
+
+	return tabID
 }
