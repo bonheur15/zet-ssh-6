@@ -24,7 +24,8 @@ type TabInstance struct {
 
 func (tw *TerminalWindow) applyConfigToInstance(inst *terminal.VteTerminalInstance) {
 	inst.SetFont(tw.Cfg.FontName, tw.Cfg.FontSize)
-	inst.SetColors(theme.DefaultPalette.Foreground, theme.DefaultPalette.Background, theme.DefaultPalette.Palette)
+	pal := theme.GetTerminalPalette(tw.Cfg)
+	inst.SetColors(pal.Foreground, pal.Background, pal.Palette)
 }
 
 func (tw *TerminalWindow) CreateTab(id, name, groupID string, saveToConfig bool) *TabInstance {

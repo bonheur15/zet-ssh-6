@@ -6,6 +6,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 
 	"zet-terminal/internal/config"
+	"zet-terminal/internal/theme"
 )
 
 type TerminalWindow struct {
@@ -33,6 +34,21 @@ type TerminalWindow struct {
 	sidebarTimeoutID glib.SourceHandle
 }
 
+var (
+	activeWindows     = make(map[*TerminalWindow]bool)
+	GlobalCSSProvider *gtk.CSSProvider
+)
+
+func InitGlobalCSS(cfg *config.Config) {
+	GlobalCSSProvider = gtk.NewCSSProvider()
+	GlobalCSSProvider.LoadFromData(theme.GetCSS(cfg))
+	gtk.StyleContextAddProviderForDisplay(
+		gdk.DisplayGetDefault(),
+		GlobalCSSProvider,
+		gtk.STYLE_PROVIDER_PRIORITY_USER,
+	)
+}
+
 func NewTerminalWindow(app *gtk.Application, cfg *config.Config) *TerminalWindow {
 	win := gtk.NewApplicationWindow(app)
 	win.SetTitle("Terminal")
@@ -46,6 +62,11 @@ func NewTerminalWindow(app *gtk.Application, cfg *config.Config) *TerminalWindow
 		TabInstances:       make(map[string]*TabInstance),
 		renamingGroupIndex: -1,
 	}
+
+	activeWindows[tw] = true
+	win.ConnectDestroy(func() {
+		delete(activeWindows, tw)
+	})
 
 	tw.setupUI()
 	tw.setupShortcuts()
