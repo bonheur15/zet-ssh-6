@@ -7,11 +7,28 @@ import (
 	"strings"
 )
 
-// ReadShellHistory reads the last N commands from the configured shell's history file.
-func ReadShellHistory(shellPath string) []string {
+func recentHistoryWindow(limit int) int {
+	if limit <= 0 {
+		limit = 50
+	}
+	window := limit * 20
+	if window < 200 {
+		window = 200
+	}
+	if window > 5000 {
+		window = 5000
+	}
+	return window
+}
+
+// ReadShellHistory reads a bounded set of recent commands from the configured shell history file.
+func ReadShellHistory(shellPath string, limit int) []string {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return nil
+	}
+	if limit <= 0 {
+		limit = 50
 	}
 
 	var historyFile string
@@ -31,24 +48,25 @@ func ReadShellHistory(shellPath string) []string {
 	}
 	defer file.Close()
 
-	var rawLines []string
+	windowSize := recentHistoryWindow(limit)
+	rawLines := make([]string, 0, windowSize)
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		line := scanner.Text()
-		rawLines = append(rawLines, line)
+		rawLines = append(rawLines, scanner.Text())
+		if len(rawLines) > windowSize {
+			copy(rawLines, rawLines[1:])
+			rawLines = rawLines[:windowSize]
+		}
 	}
-
-	// We only care about the last 100 lines to parse the most recent history items.
-	startIdx := len(rawLines) - 100
-	if startIdx < 0 {
-		startIdx = 0
+	if err := scanner.Err(); err != nil {
+		return nil
 	}
 
 	var parsedCmds []string
 	seen := make(map[string]bool)
 
 	// Process lines from newest to oldest
-	for i := len(rawLines) - 1; i >= startIdx; i-- {
+	for i := len(rawLines) - 1; i >= 0; i-- {
 		line := rawLines[i]
 		cmd := strings.TrimSpace(line)
 		if cmd == "" {
@@ -81,7 +99,7 @@ func ReadShellHistory(shellPath string) []string {
 		seen[cmd] = true
 
 		parsedCmds = append(parsedCmds, cmd)
-		if len(parsedCmds) >= 10 { // Max 10 items in history UI
+		if len(parsedCmds) >= limit {
 			break
 		}
 	}

@@ -18,6 +18,54 @@ import (
 	"zet-terminal/internal/window"
 )
 
+type launchRequest struct {
+	WorkingDir     string
+	ForceNewWindow bool
+}
+
+func parseLaunchRequest(args []string, cwd string) launchRequest {
+	req := launchRequest{}
+
+	resolveDir := func(candidate string) string {
+		if candidate == "" {
+			return ""
+		}
+		if !filepath.IsAbs(candidate) {
+			candidate = filepath.Join(cwd, candidate)
+		}
+		if stat, err := os.Stat(candidate); err == nil && stat.IsDir() {
+			return candidate
+		}
+		return ""
+	}
+
+	for i := 1; i < len(args); i++ {
+		arg := args[i]
+		switch {
+		case arg == "--new-window":
+			req.ForceNewWindow = true
+		case arg == "--working-directory" && i+1 < len(args):
+			if dir := resolveDir(args[i+1]); dir != "" {
+				req.WorkingDir = dir
+				req.ForceNewWindow = true
+			}
+			i++
+		case strings.HasPrefix(arg, "--working-directory="):
+			if dir := resolveDir(strings.TrimPrefix(arg, "--working-directory=")); dir != "" {
+				req.WorkingDir = dir
+				req.ForceNewWindow = true
+			}
+		case !strings.HasPrefix(arg, "-"):
+			if dir := resolveDir(arg); dir != "" {
+				req.WorkingDir = dir
+				req.ForceNewWindow = true
+			}
+		}
+	}
+
+	return req
+}
+
 func main() {
 	// Detach from the calling terminal so the shell gets control back
 	// immediately and closing the calling terminal won't kill this app.
@@ -73,29 +121,8 @@ func main() {
 			isInitialized = true
 		}
 
-		// Parse the arguments for directory
-		dir := ""
-		for _, arg := range args[1:] {
-			if strings.HasPrefix(arg, "--working-directory=") {
-				d := strings.TrimPrefix(arg, "--working-directory=")
-				if !filepath.IsAbs(d) {
-					d = filepath.Join(cwd, d)
-				}
-				if stat, err := os.Stat(d); err == nil && stat.IsDir() {
-					dir = d
-					break
-				}
-			} else if !strings.HasPrefix(arg, "-") {
-				d := arg
-				if !filepath.IsAbs(d) {
-					d = filepath.Join(cwd, d)
-				}
-				if stat, err := os.Stat(d); err == nil && stat.IsDir() {
-					dir = d
-					break
-				}
-			}
-		}
+		req := parseLaunchRequest(args, cwd)
+		dir := req.WorkingDir
 
 		if dir != "" {
 			activeCount := window.ActiveWindowsCount()
@@ -128,7 +155,10 @@ func main() {
 				}
 
 				// Open a new terminal window showing that tab
-				window.NewTerminalWindow(app, cfg, tabID, dir)
+				newWin := window.NewTerminalWindow(app, cfg, tabID, dir)
+				if newWin != nil {
+					newWin.Win.Present()
+				}
 			} else {
 				// No active windows, start fresh with the new tab in that dir
 				tabID := "tab-" + strconv.FormatInt(time.Now().UnixNano(), 10)
@@ -148,17 +178,27 @@ func main() {
 				})
 				_ = config.SaveConfig(cfg)
 
-				window.NewTerminalWindow(app, cfg, tabID, dir)
+				newWin := window.NewTerminalWindow(app, cfg, tabID, dir)
+				if newWin != nil {
+					newWin.Win.Present()
+				}
 			}
 		} else {
-			// No directory argument
 			activeCount := window.ActiveWindowsCount()
-			if activeCount > 0 {
+			if req.ForceNewWindow {
+				newWin := window.NewTerminalWindow(app, cfg, "", cwd)
+				if newWin != nil {
+					newWin.Win.Present()
+				}
+			} else if activeCount > 0 {
 				// Focus the existing window
 				window.FocusActiveWindow()
 			} else {
 				// Open first terminal window (loads default/restored tabs)
-				window.NewTerminalWindow(app, cfg, "", "")
+				newWin := window.NewTerminalWindow(app, cfg, "", "")
+				if newWin != nil {
+					newWin.Win.Present()
+				}
 			}
 		}
 

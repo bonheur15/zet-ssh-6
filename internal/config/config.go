@@ -35,23 +35,27 @@ type KeybindingsConfig struct {
 }
 
 type Config struct {
-	FontName           string            `json:"font_name"`
-	FontSize           int               `json:"font_size"`
-	Shell              string            `json:"shell"`
-	CursorBlinkMode    int               `json:"cursor_blink_mode"` // 0 = system, 1 = blink on, 2 = blink off
-	CursorShape        int               `json:"cursor_shape"`      // 0 = block, 1 = i-beam, 2 = underline
-	ScrollbackLines    int               `json:"scrollback_lines"`
-	CommandHistory     []string          `json:"command_history"`
-	TabGroups          []GroupConfig     `json:"tab_groups"`
-	UIThemeAccent      string            `json:"ui_theme_accent"`      // "cyan", "purple", "emerald", "amber", "crimson", "steel", "custom"
-	CustomAccentColor  string            `json:"custom_accent_color"`  // Hex, default: #38bdf8
-	CustomGlowColor    string            `json:"custom_glow_color"`    // rgba or hex, default: rgba(56, 189, 248, 0.4)
-	UIThemeGlowOpacity float64           `json:"ui_theme_glow_opacity"` // 0.0 to 1.0, default: 0.4
-	TermThemePreset    string            `json:"term_theme_preset"`    // "default", "nord", "gruvbox", "solarized", "monokai", "onehalf", "custom"
-	TermBackground     string            `json:"term_background"`      // Hex, default: #121212
-	TermForeground     string            `json:"term_foreground"`      // Hex, default: #e0e0e0
-	TermPalette        []string          `json:"term_palette"`         // 16 ANSI colors
-	Keybindings        KeybindingsConfig `json:"keybindings"`
+	FontName            string            `json:"font_name"`
+	FontSize            int               `json:"font_size"`
+	Shell               string            `json:"shell"`
+	WindowWidth         int               `json:"window_width"`
+	WindowHeight        int               `json:"window_height"`
+	SidebarPinned       bool              `json:"sidebar_pinned"`
+	CommandHistoryLimit int               `json:"command_history_limit"`
+	CursorBlinkMode     int               `json:"cursor_blink_mode"` // 0 = system, 1 = blink on, 2 = blink off
+	CursorShape         int               `json:"cursor_shape"`      // 0 = block, 1 = i-beam, 2 = underline
+	ScrollbackLines     int               `json:"scrollback_lines"`
+	CommandHistory      []string          `json:"command_history"`
+	TabGroups           []GroupConfig     `json:"tab_groups"`
+	UIThemeAccent       string            `json:"ui_theme_accent"`       // "cyan", "purple", "emerald", "amber", "crimson", "steel", "custom"
+	CustomAccentColor   string            `json:"custom_accent_color"`   // Hex, default: #38bdf8
+	CustomGlowColor     string            `json:"custom_glow_color"`     // rgba or hex, default: rgba(56, 189, 248, 0.4)
+	UIThemeGlowOpacity  float64           `json:"ui_theme_glow_opacity"` // 0.0 to 1.0, default: 0.4
+	TermThemePreset     string            `json:"term_theme_preset"`     // "default", "nord", "gruvbox", "solarized", "monokai", "onehalf", "custom"
+	TermBackground      string            `json:"term_background"`       // Hex, default: #121212
+	TermForeground      string            `json:"term_foreground"`       // Hex, default: #e0e0e0
+	TermPalette         []string          `json:"term_palette"`          // 16 ANSI colors
+	Keybindings         KeybindingsConfig `json:"keybindings"`
 }
 
 func DefaultKeybindings() KeybindingsConfig {
@@ -71,13 +75,17 @@ func DefaultKeybindings() KeybindingsConfig {
 
 func DefaultConfig() *Config {
 	return &Config{
-		FontName:        "monospace",
-		FontSize:        11,
-		Shell:           "/bin/bash",
-		CursorBlinkMode: 1, // On
-		CursorShape:     0, // Block
-		ScrollbackLines: 10000,
-		CommandHistory:  []string{},
+		FontName:            "monospace",
+		FontSize:            11,
+		Shell:               "/bin/bash",
+		WindowWidth:         1100,
+		WindowHeight:        720,
+		SidebarPinned:       false,
+		CommandHistoryLimit: 50,
+		CursorBlinkMode:     1, // On
+		CursorShape:         0, // Block
+		ScrollbackLines:     10000,
+		CommandHistory:      []string{},
 		TabGroups: []GroupConfig{
 			{
 				ID:        "group-general",
@@ -119,7 +127,7 @@ func GetConfigDir() string {
 func LoadConfig() *Config {
 	dir := GetConfigDir()
 	path := filepath.Join(dir, "config.json")
-	
+
 	file, err := os.Open(path)
 	if err != nil {
 		// Doesn't exist, create default
@@ -128,7 +136,7 @@ func LoadConfig() *Config {
 		return cfg
 	}
 	defer file.Close()
-	
+
 	cfg := DefaultConfig()
 	if err := json.NewDecoder(file).Decode(cfg); err != nil {
 		return DefaultConfig()
@@ -137,7 +145,7 @@ func LoadConfig() *Config {
 		cfg.FontName = "monospace"
 		_ = SaveConfig(cfg)
 	}
-	
+
 	// Ensure defaults for new fields
 	needsSave := false
 	if data, err := os.ReadFile(path); err == nil {
@@ -147,6 +155,18 @@ func LoadConfig() *Config {
 	}
 	if cfg.UIThemeAccent == "" {
 		cfg.UIThemeAccent = "cyan"
+		needsSave = true
+	}
+	if cfg.WindowWidth < 640 {
+		cfg.WindowWidth = 1100
+		needsSave = true
+	}
+	if cfg.WindowHeight < 420 {
+		cfg.WindowHeight = 720
+		needsSave = true
+	}
+	if cfg.CommandHistoryLimit <= 0 {
+		cfg.CommandHistoryLimit = 50
 		needsSave = true
 	}
 	if cfg.CustomAccentColor == "" {
@@ -239,14 +259,14 @@ func SaveConfig(cfg *Config) error {
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return err
 	}
-	
+
 	path := filepath.Join(dir, "config.json")
 	file, err := os.Create(path)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
-	
+
 	encoder := json.NewEncoder(file)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(cfg)
