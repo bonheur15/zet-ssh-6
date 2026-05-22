@@ -157,13 +157,15 @@ func GetCSS(cfg *config.Config) string {
 const TerminalCSS = `
 /* ─── Modern Sleek Dark Terminal Theme ─── */
 window.terminal-window {
-	background: #0e1012;
+	background-image:
+		radial-gradient(circle at top right, rgba(255, 255, 255, 0.04), transparent 34%),
+		linear-gradient(180deg, #0b0f13 0%, #090c10 100%);
 	color: #f1f5f9;
 }
 
 headerbar {
-	background: #111317;
-	border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+	background: rgba(11, 15, 19, 0.92);
+	border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 	border-top: none;
 	border-left: none;
 	border-right: none;
@@ -221,10 +223,11 @@ headerbar .header-btn {
 
 headerbar .header-btn:hover {
 	background: rgba(255, 255, 255, 0.08);
+	box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04);
 }
 
 headerbar .title-label {
-	font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
 	font-size: 13px;
 	font-weight: 700;
 	color: #cbd5e1;
@@ -234,64 +237,142 @@ headerbar .title-label {
 
 /* ─── Settings Dialog Styles ─── */
 window.settings-dialog {
-	background: #111317;
+	background-image:
+		radial-gradient(circle at top right, __ACCENT_BG_ACTIVE__, transparent 28%),
+		linear-gradient(180deg, #0d1117 0%, #0a0d12 100%);
 	color: #f1f5f9;
 }
 
 .settings-box {
-	padding: 16px 20px;
+	padding: 22px 24px 20px;
+}
+
+.settings-header {
+	padding-bottom: 6px;
+}
+
+.settings-page-title {
+	font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+	font-size: 24px;
+	font-weight: 700;
+	color: #f8fafc;
+}
+
+.settings-page-subtitle {
+	font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+	font-size: 13px;
+	color: #94a3b8;
+}
+
+.settings-card {
+	background: rgba(15, 23, 32, 0.86);
+	border: 1px solid rgba(255, 255, 255, 0.07);
+	border-radius: 18px;
+	padding: 18px 18px 16px;
+	box-shadow: 0 18px 48px rgba(0, 0, 0, 0.26);
+}
+
+.settings-card-content {
+	padding-top: 4px;
 }
 
 .settings-section-title {
-	font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-	font-size: 10px;
-	font-weight: 800;
+	font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+	font-size: 15px;
+	font-weight: 700;
 	color: __ACCENT_COLOR__;
-	margin-top: 8px;
-	margin-bottom: 12px;
-	letter-spacing: 1px;
-	text-transform: uppercase;
+	margin-bottom: 2px;
+}
+
+.settings-section-description {
+	font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+	font-size: 12px;
+	color: #8ea0b8;
 }
 
 .settings-row {
-	margin-bottom: 10px;
+	min-height: 36px;
 }
 
 .settings-label {
-	font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-	font-size: 11px;
+	font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+	font-size: 12px;
 	font-weight: 600;
-	color: #cbd5e1;
+	color: #dbe6f3;
+}
+
+.settings-hint {
+	font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+	font-size: 11px;
+	color: #7f90a7;
 }
 
 .settings-entry {
-	background: rgba(255, 255, 255, 0.04);
+	background: rgba(255, 255, 255, 0.045);
 	border: 1px solid rgba(255, 255, 255, 0.1);
-	border-radius: 6px;
+	border-radius: 10px;
 	color: #f1f5f9;
-	padding: 5px 8px;
-	font-size: 11px;
+	padding: 8px 10px;
+	font-size: 12px;
 }
 
 .settings-entry:focus {
 	border-color: __ACCENT_COLOR__;
 	outline: none;
+	box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.03);
 }
 
 .settings-dropdown {
-	background: rgba(255, 255, 255, 0.04);
+	background: rgba(255, 255, 255, 0.045);
 	border: 1px solid rgba(255, 255, 255, 0.1);
-	border-radius: 6px;
+	border-radius: 10px;
 	color: #f1f5f9;
-	padding: 4px;
-	font-size: 11px;
+	padding: 6px 8px;
+	font-size: 12px;
+}
+
+.settings-dialog scale trough {
+	min-height: 8px;
+	background: rgba(255, 255, 255, 0.08);
+	border-radius: 999px;
+}
+
+.settings-dialog scale highlight {
+	background: linear-gradient(90deg, __ACCENT_COLOR__, #ffffff);
+	border-radius: 999px;
+}
+
+.settings-dialog switch slider {
+	background: #ffffff;
+}
+
+.settings-dialog switch:checked {
+	background: __ACCENT_COLOR__;
+}
+
+.history-panel {
+	padding: 0 2px 4px;
+}
+
+.history-search-entry {
+	background: rgba(255, 255, 255, 0.05);
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	border-radius: 10px;
+	color: #e2e8f0;
+	padding: 8px 10px;
+	margin: 4px 0 8px;
+}
+
+.history-search-entry:focus {
+	border-color: __ACCENT_COLOR__;
+	box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.03);
 }
 
 /* ─── VTE Terminal Widget Container ─── */
 .terminal-container {
-	background: #0e1012;
+	background: transparent;
 	border: none;
-	padding: 4px;
+	padding: 6px;
 	margin: 0;
 }
 
@@ -301,10 +382,12 @@ window.settings-dialog {
 }
 
 .sidebar-panel {
-	background-image: linear-gradient(to bottom, #16181c, #0e1012);
-	border-right: 1px solid rgba(255, 255, 255, 0.05);
+	background-image:
+		linear-gradient(180deg, rgba(17, 24, 32, 0.96), rgba(10, 14, 20, 0.96)),
+		radial-gradient(circle at top left, __ACCENT_BG_GLOW__, transparent 45%);
+	border-right: 1px solid rgba(255, 255, 255, 0.06);
 	padding: 14px 10px;
-	box-shadow: 4px 0 16px rgba(0, 0, 0, 0.5);
+	box-shadow: 8px 0 24px rgba(0, 0, 0, 0.35);
 }
 
 .sidebar-title {
@@ -331,7 +414,7 @@ window.settings-dialog {
 
 .sidebar-btn-label {
 	font-family: "JetBrains Mono", "Fira Code", "Hack", monospace;
-	font-size: 10px;
+	font-size: 11px;
 	color: #94a3b8;
 	transition: color 0.2s ease;
 }

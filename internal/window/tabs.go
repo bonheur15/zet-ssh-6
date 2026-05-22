@@ -124,6 +124,10 @@ func (tw *TerminalWindow) CloseTab(id string) {
 }
 
 func (tw *TerminalWindow) CloseTabSilently(id string) {
+	tw.closeTabSilently(id, true)
+}
+
+func (tw *TerminalWindow) closeTabSilently(id string, allowWindowClose bool) {
 	tab, ok := tw.TabInstances[id]
 	if !ok {
 		return
@@ -133,7 +137,12 @@ func (tw *TerminalWindow) CloseTabSilently(id string) {
 	delete(tw.TabInstances, id)
 
 	if len(tw.TabInstances) == 0 {
-		tw.Win.Close()
+		if allowWindowClose {
+			tw.Win.Close()
+		} else {
+			tw.ActiveTabID = ""
+			tw.renderWorkspace()
+		}
 		return
 	}
 

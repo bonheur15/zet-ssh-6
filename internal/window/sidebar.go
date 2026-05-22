@@ -2,6 +2,7 @@ package window
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/diamondburned/gotk4/pkg/core/glib"
@@ -16,7 +17,8 @@ func (tw *TerminalWindow) setupSideDock() {
 	tw.Revealer = gtk.NewRevealer()
 	tw.Revealer.SetTransitionType(gtk.RevealerTransitionTypeSlideRight)
 	tw.Revealer.SetTransitionDuration(250)
-	tw.Revealer.SetRevealChild(false)
+	tw.SidebarPinned = tw.Cfg.SidebarPinned
+	tw.Revealer.SetRevealChild(tw.SidebarPinned)
 
 	// Panel Container Box
 	panelBox := gtk.NewBox(gtk.OrientationVertical, 0)
@@ -67,7 +69,7 @@ func (tw *TerminalWindow) setupSideDock() {
 
 	// Single unified Hover Event Controller on the parent DockBox
 	dockMotionCtrl := gtk.NewEventControllerMotion()
-	
+
 	dockMotionCtrl.ConnectEnter(func(x float64, y float64) {
 		if tw.sidebarTimeoutID != 0 {
 			glib.SourceRemove(tw.sidebarTimeoutID)
@@ -96,7 +98,7 @@ func (tw *TerminalWindow) setupSideDock() {
 			return false
 		})
 	})
-	
+
 	tw.DockBox.AddController(dockMotionCtrl)
 }
 
@@ -124,9 +126,21 @@ func (tw *TerminalWindow) setupHistorySection(parentBox *gtk.Box) {
 	tw.HistoryRevealer.SetTransitionDuration(200)
 	tw.HistoryRevealer.SetRevealChild(false)
 
+	historyBox := gtk.NewBox(gtk.OrientationVertical, 8)
+	historyBox.AddCSSClass("history-panel")
+
+	tw.HistorySearchEntry = gtk.NewEntry()
+	tw.HistorySearchEntry.AddCSSClass("history-search-entry")
+	tw.HistorySearchEntry.SetPlaceholderText("Search commands")
+	tw.HistorySearchEntry.ConnectChanged(func() {
+		tw.renderHistoryList(tw.HistorySearchEntry.Text())
+	})
+	historyBox.Append(tw.HistorySearchEntry)
+
 	tw.HistoryListBox = gtk.NewBox(gtk.OrientationVertical, 0)
 	tw.HistoryListBox.SetHExpand(true)
-	tw.HistoryRevealer.SetChild(tw.HistoryListBox)
+	historyBox.Append(tw.HistoryListBox)
+	tw.HistoryRevealer.SetChild(historyBox)
 	parentBox.Append(tw.HistoryRevealer)
 
 	tw.HistoryHeaderBtn.ConnectClicked(func() {
@@ -135,6 +149,7 @@ func (tw *TerminalWindow) setupHistorySection(parentBox *gtk.Box) {
 		if !isExpanded {
 			tw.HistoryArrowLbl.SetLabel("▼")
 			tw.updateHistoryUI()
+			tw.HistorySearchEntry.GrabFocus()
 		} else {
 			tw.HistoryArrowLbl.SetLabel("▶")
 		}
@@ -191,6 +206,7 @@ func (tw *TerminalWindow) renderWorkspace() {
 			}
 			tw.Cfg.TabGroups = append(tw.Cfg.TabGroups, newGroup)
 			_ = config.SaveConfig(tw.Cfg)
+			broadcastConfig(tw.Cfg)
 			tw.isCreatingGroup = false
 			tw.renderWorkspace()
 		}
@@ -273,6 +289,7 @@ func (tw *TerminalWindow) renderWorkspace() {
 				if name != "" {
 					tw.Cfg.TabGroups[groupIndex].Name = name
 					_ = config.SaveConfig(tw.Cfg)
+					broadcastConfig(tw.Cfg)
 				}
 				tw.renamingGroupIndex = -1
 				tw.renderWorkspace()
@@ -366,7 +383,7 @@ func (tw *TerminalWindow) renderWorkspace() {
 			toggleBtn.ConnectClicked(func() {
 				tw.Cfg.TabGroups[groupIndex].Collapsed = !tw.Cfg.TabGroups[groupIndex].Collapsed
 				_ = config.SaveConfig(tw.Cfg)
-				tw.renderWorkspace()
+				broadcastConfig(tw.Cfg)
 			})
 		}
 
@@ -415,6 +432,7 @@ func (tw *TerminalWindow) renderWorkspace() {
 							tw.Win.SetTitle(name + " - Terminal")
 						}
 						_ = config.SaveConfig(tw.Cfg)
+						broadcastConfig(tw.Cfg)
 					}
 					tw.renamingTabID = ""
 					tw.renderWorkspace()
@@ -534,26 +552,55 @@ func (tw *TerminalWindow) createTabInGroup(groupID string) {
 func (tw *TerminalWindow) deleteGroup(groupIndex int) {
 	group := tw.Cfg.TabGroups[groupIndex]
 
-	for _, tabCfg := range group.Tabs {
-		tw.CloseTabSilently(tabCfg.ID)
-	}
-
 	tw.Cfg.TabGroups = append(tw.Cfg.TabGroups[:groupIndex], tw.Cfg.TabGroups[groupIndex+1:]...)
+	if len(tw.Cfg.TabGroups) == 0 {
+		tw.Cfg.TabGroups = []config.GroupConfig{
+			{
+				ID:        "group-general",
+				Name:      "General Workspace",
+				Collapsed: false,
+				Tabs: []config.TabConfig{
+					{
+						ID:   "tab-1",
+						Name: "Primary Console",
+					},
+				},
+			},
+		}
+	}
 	_ = config.SaveConfig(tw.Cfg)
 
-	if len(tw.TabInstances) == 0 {
-		tw.createDefaultTabStructure()
-	} else {
-		tw.renderWorkspace()
+	for w := range activeWindows {
+		for _, tabCfg := range group.Tabs {
+			w.closeTabSilently(tabCfg.ID, false)
+		}
+	}
+	broadcastConfig(tw.Cfg)
+	if len(group.Tabs) > 0 && tw.TabInstances["tab-1"] == nil && len(tw.Cfg.TabGroups) == 1 && len(tw.Cfg.TabGroups[0].Tabs) == 1 && tw.Cfg.TabGroups[0].Tabs[0].ID == "tab-1" {
+		for w := range activeWindows {
+			if len(w.TabInstances) == 0 {
+				w.CreateTab("tab-1", "Primary Console", "group-general", "", false)
+				w.ActivateTab("tab-1")
+			}
+		}
 	}
 }
 
 func (tw *TerminalWindow) updateHistoryUI() {
+	tw.HistoryCommands = terminal.ReadShellHistory(tw.Cfg.Shell, tw.Cfg.CommandHistoryLimit)
+	tw.renderHistoryList("")
+	if tw.HistorySearchEntry != nil {
+		tw.HistorySearchEntry.SetText("")
+	}
+}
+
+func (tw *TerminalWindow) renderHistoryList(query string) {
 	for child := tw.HistoryListBox.FirstChild(); child != nil; child = tw.HistoryListBox.FirstChild() {
 		tw.HistoryListBox.Remove(child)
 	}
 
-	history := terminal.ReadShellHistory(tw.Cfg.Shell)
+	query = strings.TrimSpace(strings.ToLower(query))
+	history := tw.HistoryCommands
 	if len(history) == 0 {
 		emptyLabel := gtk.NewLabel("No commands run yet.")
 		emptyLabel.AddCSSClass("sidebar-btn-label")
@@ -563,8 +610,13 @@ func (tw *TerminalWindow) updateHistoryUI() {
 		return
 	}
 
+	matchCount := 0
 	for _, cmd := range history {
 		cmdStr := cmd
+		if query != "" && !strings.Contains(strings.ToLower(cmdStr), query) {
+			continue
+		}
+		matchCount++
 
 		row := gtk.NewBox(gtk.OrientationHorizontal, 0)
 		row.AddCSSClass("sidebar-row")
@@ -613,5 +665,13 @@ func (tw *TerminalWindow) updateHistoryUI() {
 		row.Append(btnArrow)
 
 		tw.HistoryListBox.Append(row)
+	}
+
+	if matchCount == 0 {
+		emptyLabel := gtk.NewLabel("No matching commands.")
+		emptyLabel.AddCSSClass("sidebar-btn-label")
+		emptyLabel.SetMarginTop(10)
+		emptyLabel.SetHAlign(gtk.AlignCenter)
+		tw.HistoryListBox.Append(emptyLabel)
 	}
 }

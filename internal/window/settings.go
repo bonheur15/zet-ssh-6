@@ -58,7 +58,8 @@ func isValidColor(s string) bool {
 
 func createColorButtonField(labelText, hexValue string) (*gtk.Box, *gtk.ColorButton) {
 	row := gtk.NewBox(gtk.OrientationHorizontal, 8)
-	
+	row.AddCSSClass("settings-row")
+
 	lbl := gtk.NewLabel(labelText)
 	lbl.AddCSSClass("settings-label")
 	lbl.SetHAlign(gtk.AlignStart)
@@ -67,11 +68,11 @@ func createColorButtonField(labelText, hexValue string) (*gtk.Box, *gtk.ColorBut
 
 	btn := gtk.NewColorButton()
 	btn.AddCSSClass("settings-entry")
-	
-	var c gdk.RGBA
+
+	c := gdk.NewRGBA(0, 0, 0, 0)
 	c.Parse(hexValue)
 	btn.SetRGBA(&c)
-	
+
 	row.Append(btn)
 	return row, btn
 }
@@ -86,7 +87,8 @@ func colorToHex(btn *gtk.ColorButton) string {
 
 func createKeybindingField(labelText, value string) (*gtk.Box, *gtk.Entry) {
 	row := gtk.NewBox(gtk.OrientationHorizontal, 8)
-	
+	row.AddCSSClass("settings-row")
+
 	lbl := gtk.NewLabel(labelText)
 	lbl.AddCSSClass("settings-label")
 	lbl.SetHAlign(gtk.AlignStart)
@@ -97,9 +99,66 @@ func createKeybindingField(labelText, value string) (*gtk.Box, *gtk.Entry) {
 	entry.AddCSSClass("settings-entry")
 	entry.SetWidthChars(16)
 	entry.SetText(value)
-	
+
 	row.Append(entry)
 	return row, entry
+}
+
+func createSettingsCard(title, description string) (*gtk.Box, *gtk.Box) {
+	card := gtk.NewBox(gtk.OrientationVertical, 10)
+	card.AddCSSClass("settings-card")
+
+	header := gtk.NewBox(gtk.OrientationVertical, 2)
+	header.AddCSSClass("settings-card-header")
+
+	titleLabel := gtk.NewLabel(title)
+	titleLabel.AddCSSClass("settings-section-title")
+	titleLabel.SetHAlign(gtk.AlignStart)
+	header.Append(titleLabel)
+
+	if description != "" {
+		descLabel := gtk.NewLabel(description)
+		descLabel.AddCSSClass("settings-section-description")
+		descLabel.SetHAlign(gtk.AlignStart)
+		descLabel.SetWrap(true)
+		header.Append(descLabel)
+	}
+
+	card.Append(header)
+
+	content := gtk.NewBox(gtk.OrientationVertical, 10)
+	content.AddCSSClass("settings-card-content")
+	card.Append(content)
+
+	return card, content
+}
+
+func createSwitchField(labelText, description string, active bool) (*gtk.Box, *gtk.Switch) {
+	row := gtk.NewBox(gtk.OrientationHorizontal, 12)
+	row.AddCSSClass("settings-row")
+
+	copyBox := gtk.NewBox(gtk.OrientationVertical, 2)
+	copyBox.SetHExpand(true)
+
+	lbl := gtk.NewLabel(labelText)
+	lbl.AddCSSClass("settings-label")
+	lbl.SetHAlign(gtk.AlignStart)
+	copyBox.Append(lbl)
+
+	if description != "" {
+		desc := gtk.NewLabel(description)
+		desc.AddCSSClass("settings-hint")
+		desc.SetHAlign(gtk.AlignStart)
+		desc.SetWrap(true)
+		copyBox.Append(desc)
+	}
+
+	sw := gtk.NewSwitch()
+	sw.SetActive(active)
+
+	row.Append(copyBox)
+	row.Append(sw)
+	return row, sw
 }
 
 func (tw *TerminalWindow) openSettingsDialog() {
@@ -107,13 +166,28 @@ func (tw *TerminalWindow) openSettingsDialog() {
 	dialog.SetTitle("Settings")
 	dialog.SetTransientFor(&tw.Win.Window)
 	dialog.SetModal(true)
-	dialog.SetDefaultSize(450, 550)
+	dialog.SetDefaultSize(760, 680)
 	dialog.AddCSSClass("settings-dialog")
 
 	// Set up layout
-	box := gtk.NewBox(gtk.OrientationVertical, 0)
+	box := gtk.NewBox(gtk.OrientationVertical, 18)
 	box.AddCSSClass("settings-box")
 	dialog.SetChild(box)
+
+	header := gtk.NewBox(gtk.OrientationVertical, 4)
+	header.AddCSSClass("settings-header")
+	box.Append(header)
+
+	title := gtk.NewLabel("Terminal Preferences")
+	title.AddCSSClass("settings-page-title")
+	title.SetHAlign(gtk.AlignStart)
+	header.Append(title)
+
+	subtitle := gtk.NewLabel("Tune launch behavior, appearance, keyboard shortcuts, and terminal rendering.")
+	subtitle.AddCSSClass("settings-page-subtitle")
+	subtitle.SetHAlign(gtk.AlignStart)
+	subtitle.SetWrap(true)
+	header.Append(subtitle)
 
 	// Scrollable content area
 	scrolled := gtk.NewScrolledWindow()
@@ -121,17 +195,16 @@ func (tw *TerminalWindow) openSettingsDialog() {
 	scrolled.SetVExpand(true)
 	box.Append(scrolled)
 
-	contentBox := gtk.NewBox(gtk.OrientationVertical, 12)
+	contentBox := gtk.NewBox(gtk.OrientationVertical, 16)
 	scrolled.SetChild(contentBox)
 
 	// --- SECTION: SHELL & GENERAL ---
-	lblGenTitle := gtk.NewLabel("General Settings")
-	lblGenTitle.AddCSSClass("settings-section-title")
-	lblGenTitle.SetHAlign(gtk.AlignStart)
-	contentBox.Append(lblGenTitle)
+	generalCard, generalContent := createSettingsCard("General", "Control the shell, window defaults, and session history behavior.")
+	contentBox.Append(generalCard)
 
 	// Shell row
 	rowShell := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	rowShell.AddCSSClass("settings-row")
 	lblShell := gtk.NewLabel("Default Shell:")
 	lblShell.AddCSSClass("settings-label")
 	lblShell.SetHAlign(gtk.AlignStart)
@@ -141,10 +214,11 @@ func (tw *TerminalWindow) openSettingsDialog() {
 	entryShell.SetText(tw.Cfg.Shell)
 	rowShell.Append(lblShell)
 	rowShell.Append(entryShell)
-	contentBox.Append(rowShell)
+	generalContent.Append(rowShell)
 
 	// Scrollback lines row
 	rowScrollback := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	rowScrollback.AddCSSClass("settings-row")
 	lblScrollback := gtk.NewLabel("Scrollback Lines:")
 	lblScrollback.AddCSSClass("settings-label")
 	lblScrollback.SetHAlign(gtk.AlignStart)
@@ -154,17 +228,57 @@ func (tw *TerminalWindow) openSettingsDialog() {
 	spinScrollback.AddCSSClass("settings-entry")
 	rowScrollback.Append(lblScrollback)
 	rowScrollback.Append(spinScrollback)
-	contentBox.Append(rowScrollback)
+	generalContent.Append(rowScrollback)
+
+	rowHistoryLimit := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	rowHistoryLimit.AddCSSClass("settings-row")
+	lblHistoryLimit := gtk.NewLabel("Saved Past Commands:")
+	lblHistoryLimit.AddCSSClass("settings-label")
+	lblHistoryLimit.SetHAlign(gtk.AlignStart)
+	lblHistoryLimit.SetHExpand(true)
+	adjHistoryLimit := gtk.NewAdjustment(float64(tw.Cfg.CommandHistoryLimit), 10, 500, 5, 25, 0)
+	spinHistoryLimit := gtk.NewSpinButton(adjHistoryLimit, 5, 0)
+	spinHistoryLimit.AddCSSClass("settings-entry")
+	rowHistoryLimit.Append(lblHistoryLimit)
+	rowHistoryLimit.Append(spinHistoryLimit)
+	generalContent.Append(rowHistoryLimit)
+
+	rowWindowWidth := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	rowWindowWidth.AddCSSClass("settings-row")
+	lblWindowWidth := gtk.NewLabel("Default Window Width:")
+	lblWindowWidth.AddCSSClass("settings-label")
+	lblWindowWidth.SetHAlign(gtk.AlignStart)
+	lblWindowWidth.SetHExpand(true)
+	adjWindowWidth := gtk.NewAdjustment(float64(tw.Cfg.WindowWidth), 640, 3840, 20, 100, 0)
+	spinWindowWidth := gtk.NewSpinButton(adjWindowWidth, 20, 0)
+	spinWindowWidth.AddCSSClass("settings-entry")
+	rowWindowWidth.Append(lblWindowWidth)
+	rowWindowWidth.Append(spinWindowWidth)
+	generalContent.Append(rowWindowWidth)
+
+	rowWindowHeight := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	rowWindowHeight.AddCSSClass("settings-row")
+	lblWindowHeight := gtk.NewLabel("Default Window Height:")
+	lblWindowHeight.AddCSSClass("settings-label")
+	lblWindowHeight.SetHAlign(gtk.AlignStart)
+	lblWindowHeight.SetHExpand(true)
+	adjWindowHeight := gtk.NewAdjustment(float64(tw.Cfg.WindowHeight), 420, 2160, 20, 100, 0)
+	spinWindowHeight := gtk.NewSpinButton(adjWindowHeight, 20, 0)
+	spinWindowHeight.AddCSSClass("settings-entry")
+	rowWindowHeight.Append(lblWindowHeight)
+	rowWindowHeight.Append(spinWindowHeight)
+	generalContent.Append(rowWindowHeight)
+
+	rowSidebarPinned, switchSidebarPinned := createSwitchField("Keep sidebar pinned by default", "New windows open with the workspace sidebar already visible.", tw.Cfg.SidebarPinned)
+	generalContent.Append(rowSidebarPinned)
 
 	// --- SECTION: APPEARANCE ---
-	lblAppTitle := gtk.NewLabel("Appearance")
-	lblAppTitle.AddCSSClass("settings-section-title")
-	lblAppTitle.SetHAlign(gtk.AlignStart)
-	lblAppTitle.SetMarginTop(12)
-	contentBox.Append(lblAppTitle)
+	appearanceCard, appearanceContent := createSettingsCard("Appearance", "Set typography, cursor behavior, and the overall application accent.")
+	contentBox.Append(appearanceCard)
 
 	// Font Family row
 	rowFontName := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	rowFontName.AddCSSClass("settings-row")
 	lblFontName := gtk.NewLabel("Font Family:")
 	lblFontName.AddCSSClass("settings-label")
 	lblFontName.SetHAlign(gtk.AlignStart)
@@ -174,10 +288,11 @@ func (tw *TerminalWindow) openSettingsDialog() {
 	entryFontName.SetText(tw.Cfg.FontName)
 	rowFontName.Append(lblFontName)
 	rowFontName.Append(entryFontName)
-	contentBox.Append(rowFontName)
+	appearanceContent.Append(rowFontName)
 
 	// Font Size row
 	rowFontSize := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	rowFontSize.AddCSSClass("settings-row")
 	lblFontSize := gtk.NewLabel("Font Size:")
 	lblFontSize.AddCSSClass("settings-label")
 	lblFontSize.SetHAlign(gtk.AlignStart)
@@ -187,10 +302,11 @@ func (tw *TerminalWindow) openSettingsDialog() {
 	spinFontSize.AddCSSClass("settings-entry")
 	rowFontSize.Append(lblFontSize)
 	rowFontSize.Append(spinFontSize)
-	contentBox.Append(rowFontSize)
+	appearanceContent.Append(rowFontSize)
 
 	// Cursor Shape row
 	rowCursorShape := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	rowCursorShape.AddCSSClass("settings-row")
 	lblCursorShape := gtk.NewLabel("Cursor Shape:")
 	lblCursorShape.AddCSSClass("settings-label")
 	lblCursorShape.SetHAlign(gtk.AlignStart)
@@ -204,10 +320,11 @@ func (tw *TerminalWindow) openSettingsDialog() {
 	comboCursorShape.SetActive(tw.Cfg.CursorShape)
 	rowCursorShape.Append(lblCursorShape)
 	rowCursorShape.Append(comboCursorShape)
-	contentBox.Append(rowCursorShape)
+	appearanceContent.Append(rowCursorShape)
 
 	// Cursor Blink Mode row
 	rowCursorBlink := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	rowCursorBlink.AddCSSClass("settings-row")
 	lblCursorBlink := gtk.NewLabel("Cursor Blink:")
 	lblCursorBlink.AddCSSClass("settings-label")
 	lblCursorBlink.SetHAlign(gtk.AlignStart)
@@ -221,17 +338,15 @@ func (tw *TerminalWindow) openSettingsDialog() {
 	comboCursorBlink.SetActive(tw.Cfg.CursorBlinkMode)
 	rowCursorBlink.Append(lblCursorBlink)
 	rowCursorBlink.Append(comboCursorBlink)
-	contentBox.Append(rowCursorBlink)
+	appearanceContent.Append(rowCursorBlink)
 
 	// --- SECTION: UI THEME ACCENT ---
-	lblThemeTitle := gtk.NewLabel("UI Theme Accent")
-	lblThemeTitle.AddCSSClass("settings-section-title")
-	lblThemeTitle.SetHAlign(gtk.AlignStart)
-	lblThemeTitle.SetMarginTop(12)
-	contentBox.Append(lblThemeTitle)
+	accentCard, accentContent := createSettingsCard("Interface Accent", "Choose the frame glow and accent color used across the terminal chrome.")
+	contentBox.Append(accentCard)
 
 	// Accent Preset Row
 	rowAccent := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	rowAccent.AddCSSClass("settings-row")
 	lblAccent := gtk.NewLabel("UI Accent Preset:")
 	lblAccent.AddCSSClass("settings-label")
 	lblAccent.SetHAlign(gtk.AlignStart)
@@ -249,20 +364,21 @@ func (tw *TerminalWindow) openSettingsDialog() {
 	comboAccent.SetActive(getAccentIndex(tw.Cfg.UIThemeAccent))
 	rowAccent.Append(lblAccent)
 	rowAccent.Append(comboAccent)
-	contentBox.Append(rowAccent)
+	accentContent.Append(rowAccent)
 
 	// Custom Accent Box (shown only when "Custom" selected)
 	customUIBox := gtk.NewBox(gtk.OrientationVertical, 8)
-	
+
 	rowCustomAccent, btnCustomAccent := createColorButtonField("Custom Accent Color:", tw.Cfg.CustomAccentColor)
 	customUIBox.Append(rowCustomAccent)
-	
+
 	rowCustomGlow, btnCustomGlow := createColorButtonField("Custom Glow Accent Color:", tw.Cfg.CustomGlowColor)
 	customUIBox.Append(rowCustomGlow)
-	contentBox.Append(customUIBox)
+	accentContent.Append(customUIBox)
 
 	// Glow Intensity / Opacity slider
 	rowGlowOpacity := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	rowGlowOpacity.AddCSSClass("settings-row")
 	lblGlowOpacity := gtk.NewLabel("Glow Intensity:")
 	lblGlowOpacity.AddCSSClass("settings-label")
 	lblGlowOpacity.SetHAlign(gtk.AlignStart)
@@ -277,16 +393,14 @@ func (tw *TerminalWindow) openSettingsDialog() {
 	scaleGlowOpacity.SetDigits(0)
 	rowGlowOpacity.Append(lblGlowOpacity)
 	rowGlowOpacity.Append(scaleGlowOpacity)
-	contentBox.Append(rowGlowOpacity)
+	accentContent.Append(rowGlowOpacity)
 
 	// --- SECTION: TERMINAL THEME & PALETTE ---
-	lblTermTitle := gtk.NewLabel("Terminal Theme")
-	lblTermTitle.AddCSSClass("settings-section-title")
-	lblTermTitle.SetHAlign(gtk.AlignStart)
-	lblTermTitle.SetMarginTop(12)
-	contentBox.Append(lblTermTitle)
+	terminalCard, terminalContent := createSettingsCard("Terminal Palette", "Pick a preset or customize the ANSI palette used by VTE.")
+	contentBox.Append(terminalCard)
 
 	rowTermTheme := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	rowTermTheme.AddCSSClass("settings-row")
 	lblTermTheme := gtk.NewLabel("Terminal Preset:")
 	lblTermTheme.AddCSSClass("settings-label")
 	lblTermTheme.SetHAlign(gtk.AlignStart)
@@ -304,14 +418,14 @@ func (tw *TerminalWindow) openSettingsDialog() {
 	comboTermTheme.SetActive(getTermThemeIndex(tw.Cfg.TermThemePreset))
 	rowTermTheme.Append(lblTermTheme)
 	rowTermTheme.Append(comboTermTheme)
-	contentBox.Append(rowTermTheme)
+	terminalContent.Append(rowTermTheme)
 
 	// Custom Terminal Color Box (shown only when "Custom" selected)
 	customTermBox := gtk.NewBox(gtk.OrientationVertical, 8)
-	
+
 	rowTermFg, btnTermFg := createColorButtonField("Foreground Color:", tw.Cfg.TermForeground)
 	customTermBox.Append(rowTermFg)
-	
+
 	rowTermBg, btnTermBg := createColorButtonField("Background Color:", tw.Cfg.TermBackground)
 	customTermBox.Append(rowTermBg)
 
@@ -348,8 +462,8 @@ func (tw *TerminalWindow) openSettingsDialog() {
 		if i < len(tw.Cfg.TermPalette) {
 			hexVal = tw.Cfg.TermPalette[i]
 		}
-		
-		var c gdk.RGBA
+
+		c := gdk.NewRGBA(0, 0, 0, 0)
 		c.Parse(hexVal)
 		btn.SetRGBA(&c)
 
@@ -358,7 +472,7 @@ func (tw *TerminalWindow) openSettingsDialog() {
 		btnPalette[i] = btn
 	}
 	customTermBox.Append(grid)
-	contentBox.Append(customTermBox)
+	terminalContent.Append(customTermBox)
 
 	// Visibility toggle functions
 	updateUIVisibility := func() {
@@ -376,41 +490,38 @@ func (tw *TerminalWindow) openSettingsDialog() {
 	updateTermVisibility()
 
 	// --- SECTION: KEYBOARD SHORTCUTS ---
-	lblKeybindTitle := gtk.NewLabel("Keyboard Shortcuts")
-	lblKeybindTitle.AddCSSClass("settings-section-title")
-	lblKeybindTitle.SetHAlign(gtk.AlignStart)
-	lblKeybindTitle.SetMarginTop(12)
-	contentBox.Append(lblKeybindTitle)
+	keyboardCard, keyboardContent := createSettingsCard("Keyboard Shortcuts", "All shortcuts are editable. Use GTK key names such as ctrl+shift+n or ctrl+Page_Down.")
+	contentBox.Append(keyboardCard)
 
 	rowNewTab, entryNewTab := createKeybindingField("New Tab:", tw.Cfg.Keybindings.NewTab)
-	contentBox.Append(rowNewTab)
+	keyboardContent.Append(rowNewTab)
 
 	rowNewWindow, entryNewWindow := createKeybindingField("New Window:", tw.Cfg.Keybindings.NewWindow)
-	contentBox.Append(rowNewWindow)
+	keyboardContent.Append(rowNewWindow)
 
 	rowCloseTab, entryCloseTab := createKeybindingField("Close Tab:", tw.Cfg.Keybindings.CloseTab)
-	contentBox.Append(rowCloseTab)
+	keyboardContent.Append(rowCloseTab)
 
 	rowNextTab, entryNextTab := createKeybindingField("Next Tab:", tw.Cfg.Keybindings.NextTab)
-	contentBox.Append(rowNextTab)
+	keyboardContent.Append(rowNextTab)
 
 	rowPrevTab, entryPrevTab := createKeybindingField("Previous Tab:", tw.Cfg.Keybindings.PrevTab)
-	contentBox.Append(rowPrevTab)
+	keyboardContent.Append(rowPrevTab)
 
 	rowCopy, entryCopy := createKeybindingField("Copy Selection:", tw.Cfg.Keybindings.Copy)
-	contentBox.Append(rowCopy)
+	keyboardContent.Append(rowCopy)
 
 	rowPaste, entryPaste := createKeybindingField("Paste Clipboard:", tw.Cfg.Keybindings.Paste)
-	contentBox.Append(rowPaste)
+	keyboardContent.Append(rowPaste)
 
 	rowToggleSidebar, entryToggleSidebar := createKeybindingField("Toggle Sidebar:", tw.Cfg.Keybindings.ToggleSidebar)
-	contentBox.Append(rowToggleSidebar)
+	keyboardContent.Append(rowToggleSidebar)
 
 	rowZoomIn, entryZoomIn := createKeybindingField("Zoom In:", tw.Cfg.Keybindings.ZoomIn)
-	contentBox.Append(rowZoomIn)
+	keyboardContent.Append(rowZoomIn)
 
 	rowZoomOut, entryZoomOut := createKeybindingField("Zoom Out:", tw.Cfg.Keybindings.ZoomOut)
-	contentBox.Append(rowZoomOut)
+	keyboardContent.Append(rowZoomOut)
 
 	// --- BOTTOM BUTTONS: SAVE & CANCEL ---
 	btnBox := gtk.NewBox(gtk.OrientationHorizontal, 12)
@@ -434,6 +545,10 @@ func (tw *TerminalWindow) openSettingsDialog() {
 	btnSave.ConnectClicked(func() {
 		tw.Cfg.Shell = strings.TrimSpace(entryShell.Text())
 		tw.Cfg.ScrollbackLines = int(spinScrollback.Value())
+		tw.Cfg.CommandHistoryLimit = int(spinHistoryLimit.Value())
+		tw.Cfg.WindowWidth = int(spinWindowWidth.Value())
+		tw.Cfg.WindowHeight = int(spinWindowHeight.Value())
+		tw.Cfg.SidebarPinned = switchSidebarPinned.Active()
 		tw.Cfg.FontName = strings.TrimSpace(entryFontName.Text())
 		tw.Cfg.FontSize = int(spinFontSize.Value())
 
@@ -492,13 +607,20 @@ func (tw *TerminalWindow) openSettingsDialog() {
 
 		// 2. Apply config updates to all tabs in all active windows instantly
 		for w := range activeWindows {
-			w.Cfg = tw.Cfg
+			w.Cfg = cloneConfig(tw.Cfg)
+			w.SidebarPinned = w.Cfg.SidebarPinned
+			w.Revealer.SetRevealChild(w.SidebarPinned)
+			w.Win.SetDefaultSize(w.Cfg.WindowWidth, w.Cfg.WindowHeight)
 			for _, tab := range w.TabInstances {
 				w.applyConfigToInstance(tab.TermInst)
 				tab.TermInst.SetScrollbackLines(w.Cfg.ScrollbackLines)
 				tab.TermInst.SetCursorBlinkMode(w.Cfg.CursorBlinkMode)
 				tab.TermInst.SetCursorShape(w.Cfg.CursorShape)
 			}
+			if w.HistoryRevealer != nil && w.HistoryRevealer.RevealChild() {
+				w.updateHistoryUI()
+			}
+			w.renderWorkspace()
 		}
 
 		dialog.Close()
