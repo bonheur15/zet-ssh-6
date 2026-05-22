@@ -8,6 +8,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/core/glib"
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+	"github.com/diamondburned/gotk4/pkg/pango"
 
 	"zet-terminal/internal/config"
 	"zet-terminal/internal/terminal"
@@ -38,6 +39,8 @@ func (tw *TerminalWindow) setupSideDock() {
 	scrolled.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
 	scrolled.SetVExpand(true)
 	scrolled.SetHExpand(true)
+	scrolled.SetMinContentWidth(220)
+	scrolled.SetMaxContentWidth(220)
 	panelBox.Append(scrolled)
 
 	// Workspace Box inside scrolled
@@ -137,9 +140,17 @@ func (tw *TerminalWindow) setupHistorySection(parentBox *gtk.Box) {
 	})
 	historyBox.Append(tw.HistorySearchEntry)
 
+	historyScrolled := gtk.NewScrolledWindow()
+	historyScrolled.AddCSSClass("history-scroller")
+	historyScrolled.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
+	historyScrolled.SetVExpand(true)
+	historyScrolled.SetMinContentHeight(180)
+	historyScrolled.SetMaxContentHeight(320)
+
 	tw.HistoryListBox = gtk.NewBox(gtk.OrientationVertical, 0)
 	tw.HistoryListBox.SetHExpand(true)
-	historyBox.Append(tw.HistoryListBox)
+	historyScrolled.SetChild(tw.HistoryListBox)
+	historyBox.Append(historyScrolled)
 	tw.HistoryRevealer.SetChild(historyBox)
 	parentBox.Append(tw.HistoryRevealer)
 
@@ -337,6 +348,9 @@ func (tw *TerminalWindow) renderWorkspace() {
 			lblTitle.AddCSSClass("group-title-label")
 			lblTitle.SetHAlign(gtk.AlignStart)
 			lblTitle.SetHExpand(true)
+			lblTitle.SetEllipsize(pango.EllipsizeEnd)
+			lblTitle.SetMaxWidthChars(18)
+			lblTitle.SetSingleLineMode(true)
 			headerRow.Append(lblTitle)
 
 			// Create New Tab inside this group (+ Tab)
@@ -486,6 +500,9 @@ func (tw *TerminalWindow) renderWorkspace() {
 				lblTab.AddCSSClass("tab-label")
 				lblTab.SetHAlign(gtk.AlignStart)
 				lblTab.SetXAlign(0.0)
+				lblTab.SetEllipsize(pango.EllipsizeEnd)
+				lblTab.SetMaxWidthChars(20)
+				lblTab.SetSingleLineMode(true)
 				btnSelectTab.SetChild(lblTab)
 
 				btnSelectTab.ConnectClicked(func() {
@@ -632,6 +649,9 @@ func (tw *TerminalWindow) renderHistoryList(query string) {
 		lbl.AddCSSClass("sidebar-btn-label")
 		lbl.SetHAlign(gtk.AlignStart)
 		lbl.SetXAlign(0.0)
+		lbl.SetEllipsize(pango.EllipsizeEnd)
+		lbl.SetMaxWidthChars(24)
+		lbl.SetSingleLineMode(true)
 		btnText.SetChild(lbl)
 
 		btnText.ConnectClicked(func() {

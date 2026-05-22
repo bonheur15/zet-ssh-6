@@ -354,6 +354,11 @@ window.settings-dialog {
 	padding: 0 2px 4px;
 }
 
+.history-scroller {
+	background: transparent;
+	border: none;
+}
+
 .history-search-entry {
 	background: rgba(255, 255, 255, 0.05);
 	border: 1px solid rgba(255, 255, 255, 0.08);
