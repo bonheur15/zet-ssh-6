@@ -27,12 +27,20 @@ func (tw *TerminalWindow) setupSideDock() {
 	panelBox.SetSizeRequest(260, -1)
 	panelBox.SetVExpand(true)
 
+	panelOverlay := gtk.NewOverlay()
+	panelOverlay.SetVExpand(true)
+	panelBox.Append(panelOverlay)
+
+	panelContent := gtk.NewBox(gtk.OrientationVertical, 0)
+	panelContent.SetVExpand(true)
+	panelOverlay.SetChild(panelContent)
+
 	// Workspace Header
 	wsHeader := gtk.NewLabel("Workspace")
 	wsHeader.AddCSSClass("workspace-header")
 	wsHeader.SetHAlign(gtk.AlignStart)
 	wsHeader.SetMarginStart(4)
-	panelBox.Append(wsHeader)
+	panelContent.Append(wsHeader)
 
 	// Scrolled window for workspace explorer
 	scrolled := gtk.NewScrolledWindow()
@@ -43,7 +51,8 @@ func (tw *TerminalWindow) setupSideDock() {
 	scrolled.SetHExpand(true)
 	scrolled.SetMinContentWidth(260)
 	scrolled.SetMaxContentWidth(260)
-	panelBox.Append(scrolled)
+	scrolled.SetMarginBottom(44)
+	panelContent.Append(scrolled)
 
 	// Workspace Box inside scrolled
 	tw.WorkspaceBox = gtk.NewBox(gtk.OrientationVertical, 0)
@@ -51,12 +60,8 @@ func (tw *TerminalWindow) setupSideDock() {
 	tw.WorkspaceBox.SetHExpand(true)
 	scrolled.SetChild(tw.WorkspaceBox)
 
-	spacer := gtk.NewBox(gtk.OrientationVertical, 0)
-	spacer.SetVExpand(true)
-	panelBox.Append(spacer)
-
 	// Collapsible Section for Past Commands
-	tw.setupHistorySection(panelBox)
+	tw.setupHistorySection(panelOverlay)
 
 	tw.Revealer.SetChild(panelBox)
 
@@ -111,7 +116,12 @@ func (tw *TerminalWindow) setupSideDock() {
 	tw.DockBox.AddController(dockMotionCtrl)
 }
 
-func (tw *TerminalWindow) setupHistorySection(parentBox *gtk.Box) {
+func (tw *TerminalWindow) setupHistorySection(parent *gtk.Overlay) {
+	bottomBox := gtk.NewBox(gtk.OrientationVertical, 0)
+	bottomBox.AddCSSClass("sidebar-bottom-box")
+	bottomBox.SetHAlign(gtk.AlignFill)
+	bottomBox.SetVAlign(gtk.AlignEnd)
+
 	tw.HistoryHeaderBtn = gtk.NewButton()
 	tw.HistoryHeaderBtn.AddCSSClass("history-section-header")
 	tw.HistoryHeaderBtn.SetHAlign(gtk.AlignFill)
@@ -158,8 +168,9 @@ func (tw *TerminalWindow) setupHistorySection(parentBox *gtk.Box) {
 	historyScrolled.SetChild(tw.HistoryListBox)
 	historyBox.Append(historyScrolled)
 	tw.HistoryRevealer.SetChild(historyBox)
-	parentBox.Append(tw.HistoryRevealer)
-	parentBox.Append(tw.HistoryHeaderBtn)
+	bottomBox.Append(tw.HistoryRevealer)
+	bottomBox.Append(tw.HistoryHeaderBtn)
+	parent.AddOverlay(bottomBox)
 
 	tw.HistoryHeaderBtn.ConnectClicked(func() {
 		isExpanded := tw.HistoryRevealer.RevealChild()

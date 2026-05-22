@@ -411,6 +411,11 @@ window.settings-dialog {
 	box-shadow: 8px 0 24px rgba(0, 0, 0, 0.35);
 }
 
+.sidebar-bottom-box {
+	padding-top: 8px;
+	background: linear-gradient(180deg, transparent, rgba(10, 14, 20, 0.96) 22%);
+}
+
 .sidebar-title {
 	font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 	font-size: 10px;
