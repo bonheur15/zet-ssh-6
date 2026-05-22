@@ -24,7 +24,7 @@ func (tw *TerminalWindow) setupSideDock() {
 	// Panel Container Box
 	panelBox := gtk.NewBox(gtk.OrientationVertical, 0)
 	panelBox.AddCSSClass("sidebar-panel")
-	panelBox.SetSizeRequest(220, -1)
+	panelBox.SetSizeRequest(260, -1)
 	panelBox.SetVExpand(true)
 
 	// Workspace Header
@@ -39,8 +39,8 @@ func (tw *TerminalWindow) setupSideDock() {
 	scrolled.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
 	scrolled.SetVExpand(true)
 	scrolled.SetHExpand(true)
-	scrolled.SetMinContentWidth(220)
-	scrolled.SetMaxContentWidth(220)
+	scrolled.SetMinContentWidth(260)
+	scrolled.SetMaxContentWidth(260)
 	panelBox.Append(scrolled)
 
 	// Workspace Box inside scrolled
@@ -143,6 +143,7 @@ func (tw *TerminalWindow) setupHistorySection(parentBox *gtk.Box) {
 	historyScrolled := gtk.NewScrolledWindow()
 	historyScrolled.AddCSSClass("history-scroller")
 	historyScrolled.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
+	historyScrolled.SetOverlayScrolling(false)
 	historyScrolled.SetVExpand(true)
 	historyScrolled.SetMinContentHeight(180)
 	historyScrolled.SetMaxContentHeight(320)
@@ -349,7 +350,7 @@ func (tw *TerminalWindow) renderWorkspace() {
 			lblTitle.SetHAlign(gtk.AlignStart)
 			lblTitle.SetHExpand(true)
 			lblTitle.SetEllipsize(pango.EllipsizeEnd)
-			lblTitle.SetMaxWidthChars(18)
+			lblTitle.SetMaxWidthChars(24)
 			lblTitle.SetSingleLineMode(true)
 			headerRow.Append(lblTitle)
 
@@ -501,7 +502,7 @@ func (tw *TerminalWindow) renderWorkspace() {
 				lblTab.SetHAlign(gtk.AlignStart)
 				lblTab.SetXAlign(0.0)
 				lblTab.SetEllipsize(pango.EllipsizeEnd)
-				lblTab.SetMaxWidthChars(20)
+				lblTab.SetMaxWidthChars(28)
 				lblTab.SetSingleLineMode(true)
 				btnSelectTab.SetChild(lblTab)
 
@@ -650,7 +651,7 @@ func (tw *TerminalWindow) renderHistoryList(query string) {
 		lbl.SetHAlign(gtk.AlignStart)
 		lbl.SetXAlign(0.0)
 		lbl.SetEllipsize(pango.EllipsizeEnd)
-		lbl.SetMaxWidthChars(24)
+		lbl.SetMaxWidthChars(28)
 		lbl.SetSingleLineMode(true)
 		btnText.SetChild(lbl)
 

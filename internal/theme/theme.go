@@ -362,10 +362,11 @@ window.settings-dialog {
 .history-search-entry {
 	background: rgba(255, 255, 255, 0.05);
 	border: 1px solid rgba(255, 255, 255, 0.08);
-	border-radius: 10px;
+	border-radius: 8px;
 	color: #e2e8f0;
-	padding: 8px 10px;
-	margin: 4px 0 8px;
+	padding: 5px 9px;
+	margin: 2px 0 6px;
+	min-height: 28px;
 }
 
 .history-search-entry:focus {
@@ -391,7 +392,7 @@ window.settings-dialog {
 		linear-gradient(180deg, rgba(17, 24, 32, 0.96), rgba(10, 14, 20, 0.96)),
 		radial-gradient(circle at top left, __ACCENT_BG_GLOW__, transparent 45%);
 	border-right: 1px solid rgba(255, 255, 255, 0.06);
-	padding: 14px 10px;
+	padding: 14px 12px;
 	box-shadow: 8px 0 24px rgba(0, 0, 0, 0.35);
 }
 
@@ -409,7 +410,7 @@ window.settings-dialog {
 	background: transparent;
 	border: none;
 	border-radius: 6px;
-	padding: 6px 10px;
+	padding: 6px 8px;
 	transition: background-color 0.2s ease;
 }
 
@@ -443,6 +444,7 @@ window.settings-dialog {
 	border-radius: 6px;
 	background: rgba(255, 255, 255, 0.02);
 	border: 1px solid rgba(255, 255, 255, 0.04);
+	padding-right: 2px;
 	transition: all 0.2s ease;
 }
 
