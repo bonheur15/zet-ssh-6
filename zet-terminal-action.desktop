@@ -7,4 +7,4 @@ X-KDE-Priority=TopLevel
 [Desktop Action openInZetTerminal]
 Name=Open in Zet Terminal
 Icon=utilities-terminal
-Exec=zet-terminal %f
+Exec=zet-terminal --new-window --working-directory=%f

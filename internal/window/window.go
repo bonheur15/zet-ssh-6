@@ -10,28 +10,31 @@ import (
 )
 
 type TerminalWindow struct {
-	Win              *gtk.ApplicationWindow
-	App              *gtk.Application
-	Cfg              *config.Config
-	Container        *gtk.Box
-	Overlay          *gtk.Overlay
-	DockBox          *gtk.Box
-	Revealer         *gtk.Revealer
-	HistoryListBox   *gtk.Box
-	SidebarPinned    bool
+	Win            *gtk.ApplicationWindow
+	App            *gtk.Application
+	Cfg            *config.Config
+	Container      *gtk.Box
+	Overlay        *gtk.Overlay
+	DockBox        *gtk.Box
+	Revealer       *gtk.Revealer
+	HistoryListBox *gtk.Box
+	SidebarPinned  bool
 
 	// Tab Management Fields
-	Stack            *gtk.Stack
-	TabInstances     map[string]*TabInstance
-	ActiveTabID      string
-	WorkspaceBox     *gtk.Box
-	HistoryRevealer  *gtk.Revealer
-	HistoryHeaderBtn *gtk.Button
-	HistoryArrowLbl  *gtk.Label
+	Stack              *gtk.Stack
+	TabInstances       map[string]*TabInstance
+	ActiveTabID        string
+	WorkspaceBox       *gtk.Box
+	HistoryRevealer    *gtk.Revealer
+	HistoryHeaderBtn   *gtk.Button
+	HistoryArrowLbl    *gtk.Label
+	HistorySearchEntry *gtk.Entry
+	HistoryCommands    []string
 	isCreatingGroup    bool
-	renamingGroupIndex int // -1 if not renaming
+	renamingGroupIndex int    // -1 if not renaming
 	renamingTabID      string // empty if not renaming
-	sidebarTimeoutID glib.SourceHandle
+	sidebarTimeoutID   glib.SourceHandle
+	titleUpdateID      glib.SourceHandle
 }
 
 var (
@@ -84,10 +87,47 @@ func InitGlobalCSS(cfg *config.Config) {
 	)
 }
 
+func cloneConfig(cfg *config.Config) *config.Config {
+	if cfg == nil {
+		return config.DefaultConfig()
+	}
+	dup := *cfg
+	dup.CommandHistory = append([]string(nil), cfg.CommandHistory...)
+	dup.TermPalette = append([]string(nil), cfg.TermPalette...)
+	dup.TabGroups = make([]config.GroupConfig, len(cfg.TabGroups))
+	for i, group := range cfg.TabGroups {
+		dup.TabGroups[i] = group
+		dup.TabGroups[i].Tabs = append([]config.TabConfig(nil), group.Tabs...)
+	}
+	return &dup
+}
+
+func broadcastConfig(cfg *config.Config) {
+	for w := range activeWindows {
+		w.Cfg = cloneConfig(cfg)
+		w.renderWorkspace()
+		if w.ActiveTabID != "" {
+			if tab, ok := w.TabInstances[w.ActiveTabID]; ok {
+				w.Win.SetTitle(tab.Name + " - Terminal")
+			}
+		}
+	}
+}
+
+func syncWindowConfigsFromDisk() *config.Config {
+	cfg := config.LoadConfig()
+	broadcastConfig(cfg)
+	return cfg
+}
+
 func NewTerminalWindow(app *gtk.Application, cfg *config.Config, initialActiveTabID, initialActiveTabDir string) *TerminalWindow {
 	win := gtk.NewApplicationWindow(app)
 	win.SetTitle("Terminal")
-	win.SetDefaultSize(850, 550)
+	if cfg.WindowWidth > 0 && cfg.WindowHeight > 0 {
+		win.SetDefaultSize(cfg.WindowWidth, cfg.WindowHeight)
+	} else {
+		win.SetDefaultSize(1100, 720)
+	}
 	win.AddCSSClass("terminal-window")
 
 	tw := &TerminalWindow{
@@ -122,7 +162,15 @@ func NewTerminalWindow(app *gtk.Application, cfg *config.Config, initialActiveTa
 			}
 		}
 		tw.TabInstances = make(map[string]*TabInstance)
-		
+		if tw.sidebarTimeoutID != 0 {
+			glib.SourceRemove(tw.sidebarTimeoutID)
+			tw.sidebarTimeoutID = 0
+		}
+		if tw.titleUpdateID != 0 {
+			glib.SourceRemove(tw.titleUpdateID)
+			tw.titleUpdateID = 0
+		}
+
 		delete(activeWindows, tw)
 		UpdateAppHoldStatus(tw.App, tw.Cfg)
 
@@ -131,6 +179,14 @@ func NewTerminalWindow(app *gtk.Application, cfg *config.Config, initialActiveTa
 	})
 
 	win.ConnectDestroy(func() {
+		if tw.sidebarTimeoutID != 0 {
+			glib.SourceRemove(tw.sidebarTimeoutID)
+			tw.sidebarTimeoutID = 0
+		}
+		if tw.titleUpdateID != 0 {
+			glib.SourceRemove(tw.titleUpdateID)
+			tw.titleUpdateID = 0
+		}
 		delete(activeWindows, tw)
 		UpdateAppHoldStatus(tw.App, tw.Cfg)
 	})
@@ -191,6 +247,9 @@ func (tw *TerminalWindow) setupUI(initialActiveTabID, initialActiveTabDir string
 	btnSidebar.ConnectClicked(func() {
 		tw.SidebarPinned = !tw.SidebarPinned
 		tw.Revealer.SetRevealChild(tw.SidebarPinned)
+		tw.Cfg.SidebarPinned = tw.SidebarPinned
+		_ = config.SaveConfig(tw.Cfg)
+		broadcastConfig(tw.Cfg)
 		if tw.SidebarPinned {
 			tw.renderWorkspace()
 		}
@@ -267,7 +326,11 @@ func (tw *TerminalWindow) setupUI(initialActiveTabID, initialActiveTabDir string
 	tw.setupSideDock()
 
 	// Periodic title auto-updater (every 1 second)
-	glib.TimeoutAdd(1000, func() bool {
+	tw.titleUpdateID = glib.TimeoutAdd(1000, func() bool {
+		if _, exists := activeWindows[tw]; !exists {
+			tw.titleUpdateID = 0
+			return false
+		}
 		tw.updateTabAutoTitles()
 		return true
 	})
