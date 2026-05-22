@@ -359,6 +359,21 @@ window.settings-dialog {
 	border: none;
 }
 
+.sidebar-scroller scrollbar,
+.history-scroller scrollbar {
+	opacity: 0;
+	background: transparent;
+}
+
+.sidebar-scroller scrollbar slider,
+.history-scroller scrollbar slider {
+	min-width: 0;
+	min-height: 0;
+	background: transparent;
+	border: none;
+	box-shadow: none;
+}
+
 .history-search-entry {
 	background: rgba(255, 255, 255, 0.05);
 	border: 1px solid rgba(255, 255, 255, 0.08);

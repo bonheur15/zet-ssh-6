@@ -36,7 +36,9 @@ func (tw *TerminalWindow) setupSideDock() {
 
 	// Scrolled window for workspace explorer
 	scrolled := gtk.NewScrolledWindow()
+	scrolled.AddCSSClass("sidebar-scroller")
 	scrolled.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
+	scrolled.SetOverlayScrolling(true)
 	scrolled.SetVExpand(true)
 	scrolled.SetHExpand(true)
 	scrolled.SetMinContentWidth(260)
@@ -48,6 +50,10 @@ func (tw *TerminalWindow) setupSideDock() {
 	tw.WorkspaceBox.SetVExpand(true)
 	tw.WorkspaceBox.SetHExpand(true)
 	scrolled.SetChild(tw.WorkspaceBox)
+
+	spacer := gtk.NewBox(gtk.OrientationVertical, 0)
+	spacer.SetVExpand(true)
+	panelBox.Append(spacer)
 
 	// Collapsible Section for Past Commands
 	tw.setupHistorySection(panelBox)
@@ -122,10 +128,9 @@ func (tw *TerminalWindow) setupHistorySection(parentBox *gtk.Box) {
 	headerBox.Append(title)
 
 	tw.HistoryHeaderBtn.SetChild(headerBox)
-	parentBox.Append(tw.HistoryHeaderBtn)
 
 	tw.HistoryRevealer = gtk.NewRevealer()
-	tw.HistoryRevealer.SetTransitionType(gtk.RevealerTransitionTypeSlideDown)
+	tw.HistoryRevealer.SetTransitionType(gtk.RevealerTransitionTypeSlideUp)
 	tw.HistoryRevealer.SetTransitionDuration(200)
 	tw.HistoryRevealer.SetRevealChild(false)
 
@@ -143,7 +148,7 @@ func (tw *TerminalWindow) setupHistorySection(parentBox *gtk.Box) {
 	historyScrolled := gtk.NewScrolledWindow()
 	historyScrolled.AddCSSClass("history-scroller")
 	historyScrolled.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
-	historyScrolled.SetOverlayScrolling(false)
+	historyScrolled.SetOverlayScrolling(true)
 	historyScrolled.SetVExpand(true)
 	historyScrolled.SetMinContentHeight(180)
 	historyScrolled.SetMaxContentHeight(320)
@@ -154,6 +159,7 @@ func (tw *TerminalWindow) setupHistorySection(parentBox *gtk.Box) {
 	historyBox.Append(historyScrolled)
 	tw.HistoryRevealer.SetChild(historyBox)
 	parentBox.Append(tw.HistoryRevealer)
+	parentBox.Append(tw.HistoryHeaderBtn)
 
 	tw.HistoryHeaderBtn.ConnectClicked(func() {
 		isExpanded := tw.HistoryRevealer.RevealChild()
