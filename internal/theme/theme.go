@@ -351,10 +351,21 @@ window.settings-dialog {
 }
 
 .history-panel {
-	padding: 0 2px 4px;
+	background: linear-gradient(180deg, rgba(12, 17, 24, 0.98), rgba(10, 14, 20, 0.995));
+	border: 1px solid rgba(255, 255, 255, 0.07);
+	border-bottom: none;
+	border-radius: 12px 12px 0 0;
+	padding: 10px 10px 6px;
+	box-shadow: 0 -10px 28px rgba(0, 0, 0, 0.26);
+}
+
+.history-panel entry,
+.history-panel text {
+	background: transparent;
 }
 
 .history-scroller {
+	padding: 0 2px 4px;
 	background: transparent;
 	border: none;
 }
@@ -375,12 +386,12 @@ window.settings-dialog {
 }
 
 .history-search-entry {
-	background: rgba(255, 255, 255, 0.05);
-	border: 1px solid rgba(255, 255, 255, 0.08);
+	background: rgba(27, 34, 44, 0.98);
+	border: 1px solid rgba(255, 255, 255, 0.09);
 	border-radius: 8px;
 	color: #e2e8f0;
 	padding: 5px 9px;
-	margin: 2px 0 6px;
+	margin: 0 0 6px;
 	min-height: 28px;
 }
 
@@ -412,8 +423,8 @@ window.settings-dialog {
 }
 
 .sidebar-bottom-box {
-	padding-top: 8px;
-	background: linear-gradient(180deg, transparent, rgba(10, 14, 20, 0.96) 22%);
+	padding-top: 10px;
+	background: linear-gradient(180deg, transparent, rgba(10, 14, 20, 0.92) 18%, rgba(10, 14, 20, 0.98) 36%);
 }
 
 .sidebar-title {
@@ -528,21 +539,21 @@ popover > contents {
 
 /* Premium Workspace Panel Styling */
 .workspace-header {
-	font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
 	font-size: 10px;
 	font-weight: 800;
-	color: #64748b;
-	margin-top: 14px;
-	margin-bottom: 10px;
-	letter-spacing: 1.2px;
+	color: #71859d;
+	margin-top: 8px;
+	margin-bottom: 12px;
+	letter-spacing: 1.5px;
 	text-transform: uppercase;
 }
 
 .workspace-action-btn {
-	background: __ACCENT_BG_GLOW__;
+	background: linear-gradient(180deg, __ACCENT_BG_GLOW__, rgba(255, 255, 255, 0.02));
 	border: 1px solid __ACCENT_BORDER_DIM__;
-	border-radius: 6px;
-	padding: 6px 12px;
+	border-radius: 10px;
+	padding: 7px 12px;
 	margin-bottom: 14px;
 	transition: all 0.2s ease-in-out;
 }
@@ -554,7 +565,7 @@ popover > contents {
 }
 
 .workspace-action-label {
-	font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
 	font-size: 11px;
 	color: __ACCENT_COLOR__;
 	font-weight: 700;
@@ -563,16 +574,17 @@ popover > contents {
 
 /* Tab Group Header Styling */
 .group-header-row {
-	background: transparent;
-	padding: 6px 4px;
-	margin-top: 8px;
-	border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-	border-radius: 4px;
-	transition: background-color 0.2s ease;
+	background: linear-gradient(180deg, rgba(255, 255, 255, 0.018), rgba(255, 255, 255, 0.01));
+	padding: 8px 6px;
+	margin-top: 10px;
+	border: 1px solid rgba(255, 255, 255, 0.04);
+	border-radius: 10px;
+	transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
 .group-header-row:hover {
-	background: rgba(255, 255, 255, 0.02);
+	background: rgba(255, 255, 255, 0.03);
+	border-color: rgba(255, 255, 255, 0.08);
 }
 
 .group-toggle-btn {
@@ -592,10 +604,10 @@ popover > contents {
 }
 
 .group-title-label {
-	font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
 	font-size: 11px;
-	font-weight: 600;
-	color: #cbd5e1;
+	font-weight: 700;
+	color: #d8e2ee;
 	margin-left: 6px;
 }
 
@@ -632,34 +644,36 @@ popover > contents {
 
 /* Tab Row Styling */
 .tab-row {
-	margin-left: 8px;
-	margin-top: 3px;
-	margin-bottom: 3px;
-	border-radius: 4px;
+	margin-left: 10px;
+	margin-top: 4px;
+	margin-bottom: 4px;
+	border-radius: 9px;
 	background: transparent;
-	transition: background-color 0.2s ease;
+	border: 1px solid transparent;
+	transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
 .tab-row:hover:not(.active) {
 	background: rgba(255, 255, 255, 0.03);
+	border-color: rgba(255, 255, 255, 0.04);
 }
 
 .tab-row.active {
-	background: linear-gradient(to right, __ACCENT_BG_ACTIVE__, rgba(255, 255, 255, 0.02));
-	border-left: 3px solid __ACCENT_COLOR__;
-	border-radius: 0 4px 4px 0;
+	background: linear-gradient(90deg, __ACCENT_BG_ACTIVE__, rgba(255, 255, 255, 0.025));
+	border: 1px solid __ACCENT_BORDER_DIM__;
+	box-shadow: inset 2px 0 0 __ACCENT_COLOR__;
 }
 
 .tab-select-btn {
 	background: transparent;
 	border: none;
-	padding: 6px 8px;
+	padding: 7px 9px;
 }
 
 .tab-label {
-	font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
 	font-size: 11px;
-	color: #94a3b8;
+	color: #9caec2;
 	transition: color 0.2s ease;
 }
 
@@ -715,16 +729,17 @@ popover > contents {
 
 /* Collapsible Section for Past Commands */
 .history-section-header {
-	background: transparent;
-	border: none;
-	padding: 10px 4px;
-	margin-top: 20px;
-	border-top: 1px solid rgba(255, 255, 255, 0.05);
-	transition: background-color 0.2s ease;
+	background: rgba(12, 17, 24, 0.92);
+	border: 1px solid rgba(255, 255, 255, 0.06);
+	border-radius: 10px;
+	padding: 10px 8px;
+	margin-top: 10px;
+	transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
 .history-section-header:hover {
-	background: rgba(255, 255, 255, 0.02);
+	background: rgba(18, 24, 32, 0.98);
+	border-color: rgba(255, 255, 255, 0.1);
 }
 
 .history-header-arrow {
@@ -734,11 +749,11 @@ popover > contents {
 }
 
 .history-header-title {
-	font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
 	font-size: 10px;
 	font-weight: 800;
-	color: #64748b;
-	letter-spacing: 1.2px;
+	color: #7b8ea7;
+	letter-spacing: 1.5px;
 	text-transform: uppercase;
 }
 
