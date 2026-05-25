@@ -420,6 +420,9 @@ func (tw *TerminalWindow) renderWorkspace() {
 		}
 
 		for _, tabCfg := range groupConfig.Tabs {
+			if _, exists := tw.TabInstances[tabCfg.ID]; !exists {
+				continue
+			}
 			tabConfig := tabCfg
 
 			if tabConfig.ID == tw.renamingTabID {
@@ -605,18 +608,14 @@ func (tw *TerminalWindow) deleteGroup(groupIndex int) {
 	}
 	_ = config.SaveConfig(tw.Cfg)
 
-	for w := range activeWindows {
-		for _, tabCfg := range group.Tabs {
-			w.closeTabSilently(tabCfg.ID, false)
-		}
+	for _, tabCfg := range group.Tabs {
+		tw.closeTabSilently(tabCfg.ID, false)
 	}
 	broadcastConfig(tw.Cfg)
 	if len(group.Tabs) > 0 && tw.TabInstances["tab-1"] == nil && len(tw.Cfg.TabGroups) == 1 && len(tw.Cfg.TabGroups[0].Tabs) == 1 && tw.Cfg.TabGroups[0].Tabs[0].ID == "tab-1" {
-		for w := range activeWindows {
-			if len(w.TabInstances) == 0 {
-				w.CreateTab("tab-1", "Primary Console", "group-general", "", false)
-				w.ActivateTab("tab-1")
-			}
+		if len(tw.TabInstances) == 0 {
+			tw.CreateTab("tab-1", "Primary Console", "group-general", "", false)
+			tw.ActivateTab("tab-1")
 		}
 	}
 }

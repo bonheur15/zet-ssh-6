@@ -125,63 +125,28 @@ func main() {
 		dir := req.WorkingDir
 
 		if dir != "" {
-			activeCount := window.ActiveWindowsCount()
-			if activeCount > 0 {
-				tw := window.GetFirstActiveWindow()
-				groupID := ""
-				if tw != nil {
-					groupID = tw.GetActiveTabGroupID()
+			// Add a new tab to config for the new window (don't touch existing windows)
+			tabID := "tab-" + strconv.FormatInt(time.Now().UnixNano(), 10)
+			if len(cfg.TabGroups) == 0 {
+				cfg.TabGroups = []config.GroupConfig{
+					{
+						ID:        "group-general",
+						Name:      "General Workspace",
+						Collapsed: false,
+						Tabs:      []config.TabConfig{},
+					},
 				}
-				if groupID == "" && len(cfg.TabGroups) > 0 {
-					groupID = cfg.TabGroups[0].ID
-				}
-				if groupID == "" {
-					groupID = "group-general"
-				}
+			}
+			cfg.TabGroups[0].Tabs = append(cfg.TabGroups[0].Tabs, config.TabConfig{
+				ID:   tabID,
+				Name: "Console",
+			})
+			_ = config.SaveConfig(cfg)
 
-				// Create the new tab synced to all windows
-				tabID := ""
-				if tw != nil {
-					tabID = tw.CreateNewTabInGroup(groupID, dir, nil)
-				} else {
-					tabID = "tab-" + strconv.FormatInt(time.Now().UnixNano(), 10)
-					if len(cfg.TabGroups) > 0 {
-						cfg.TabGroups[0].Tabs = append(cfg.TabGroups[0].Tabs, config.TabConfig{
-							ID:   tabID,
-							Name: "Console",
-						})
-						_ = config.SaveConfig(cfg)
-					}
-				}
-
-				// Open a new terminal window showing that tab
-				newWin := window.NewTerminalWindow(app, cfg, tabID, dir)
-				if newWin != nil {
-					newWin.Win.Present()
-				}
-			} else {
-				// No active windows, start fresh with the new tab in that dir
-				tabID := "tab-" + strconv.FormatInt(time.Now().UnixNano(), 10)
-				if len(cfg.TabGroups) == 0 {
-					cfg.TabGroups = []config.GroupConfig{
-						{
-							ID:        "group-general",
-							Name:      "General Workspace",
-							Collapsed: false,
-							Tabs:      []config.TabConfig{},
-						},
-					}
-				}
-				cfg.TabGroups[0].Tabs = append(cfg.TabGroups[0].Tabs, config.TabConfig{
-					ID:   tabID,
-					Name: "Console",
-				})
-				_ = config.SaveConfig(cfg)
-
-				newWin := window.NewTerminalWindow(app, cfg, tabID, dir)
-				if newWin != nil {
-					newWin.Win.Present()
-				}
+			// Open a new terminal window showing that tab
+			newWin := window.NewTerminalWindow(app, cfg, tabID, dir)
+			if newWin != nil {
+				newWin.Win.Present()
 			}
 		} else {
 			activeCount := window.ActiveWindowsCount()

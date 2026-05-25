@@ -157,6 +157,9 @@ func NewTerminalWindow(app *gtk.Application, cfg *config.Config, initialActiveTa
 				})
 				tab.TermInst.OnWindowTitleChanged(nil)
 			} else {
+				if !pinned {
+					tw.removeTabFromConfig(id)
+				}
 				tab.TermInst.Destroy()
 				tw.Stack.Remove(tab.TermInst.Widget)
 			}
@@ -302,18 +305,44 @@ func (tw *TerminalWindow) setupUI(initialActiveTabID, initialActiveTabDir string
 
 	// Load tabs from persistent config groups
 	hasTabsLoaded := false
-	for _, group := range tw.Cfg.TabGroups {
-		for _, tab := range group.Tabs {
-			if bgTab, exists := GetBackgroundPinnedTab(tab.ID); exists {
-				tw.RestoreBackgroundTab(bgTab, group.ID)
-			} else {
+
+	// First window (fresh app start/restart): load all config tabs.
+	// Additional windows: load only background pinned tabs + initial tab if specified.
+	isFirstWindow := len(activeWindows) == 1 && len(backgroundPinnedTabs) == 0
+
+	if isFirstWindow {
+		for _, group := range tw.Cfg.TabGroups {
+			for _, tab := range group.Tabs {
 				dir := ""
 				if tab.ID == initialActiveTabID {
 					dir = initialActiveTabDir
 				}
 				tw.CreateTab(tab.ID, tab.Name, group.ID, dir, false)
+				hasTabsLoaded = true
 			}
-			hasTabsLoaded = true
+		}
+	} else {
+		// Restore background pinned tabs into this window
+		for _, group := range tw.Cfg.TabGroups {
+			for _, tab := range group.Tabs {
+				if bgTab, exists := GetBackgroundPinnedTab(tab.ID); exists {
+					tw.RestoreBackgroundTab(bgTab, group.ID)
+					hasTabsLoaded = true
+				}
+			}
+		}
+
+		// If a specific initial tab was requested (e.g. from context menu), create it
+		if initialActiveTabID != "" {
+			for _, group := range tw.Cfg.TabGroups {
+				for _, tab := range group.Tabs {
+					if tab.ID == initialActiveTabID {
+						tw.CreateTab(tab.ID, tab.Name, group.ID, initialActiveTabDir, false)
+						hasTabsLoaded = true
+						break
+					}
+				}
+			}
 		}
 	}
 

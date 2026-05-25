@@ -116,11 +116,8 @@ func (tw *TerminalWindow) CloseTab(id string) {
 	// Remove from config first
 	tw.removeTabFromConfig(id)
 
-	// Close on all windows
-	for w := range activeWindows {
-		w.Cfg = tw.Cfg
-		w.CloseTabSilently(id)
-	}
+	// Close only on this window
+	tw.CloseTabSilently(id)
 }
 
 func (tw *TerminalWindow) CloseTabSilently(id string) {
@@ -647,15 +644,12 @@ func (tw *TerminalWindow) CreateNewTabInGroup(groupID string, workingDir string,
 		}
 	}
 
-	// Create tab on all active windows
-	for w := range activeWindows {
-		w.Cfg = tw.Cfg
-		w.CreateTab(tabID, tabName, groupID, workingDir, false)
-		if w == activateOnWindow {
-			w.ActivateTab(tabID)
-		} else {
-			w.renderWorkspace()
-		}
+	// Create tab only on the requesting window
+	tw.CreateTab(tabID, tabName, groupID, workingDir, false)
+	if tw == activateOnWindow {
+		tw.ActivateTab(tabID)
+	} else {
+		tw.renderWorkspace()
 	}
 
 	return tabID
