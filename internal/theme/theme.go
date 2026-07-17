@@ -849,4 +849,178 @@ scrollbar slider:hover {
 .sidebar-inline-btn:hover image {
 	color: #ffffff;
 }
+
+/* ─── SSH Manager: sidebar section switcher ─── */
+.section-bar {
+	padding: 2px;
+	margin-top: 4px;
+	background: rgba(255, 255, 255, 0.03);
+	border: 1px solid rgba(255, 255, 255, 0.05);
+	border-radius: 10px;
+}
+
+.section-btn {
+	background: transparent;
+	border: none;
+	border-radius: 8px;
+	padding: 6px 4px;
+	transition: background-color 0.2s ease;
+}
+
+.section-btn image {
+	color: #64748b;
+	transition: color 0.2s ease;
+}
+
+.section-btn:hover {
+	background: rgba(255, 255, 255, 0.05);
+}
+
+.section-btn:hover image {
+	color: #94a3b8;
+}
+
+.section-btn.active {
+	background: __ACCENT_BG_ACTIVE__;
+	box-shadow: inset 0 -2px 0 __ACCENT_COLOR__;
+}
+
+.section-btn.active image {
+	color: __ACCENT_COLOR__;
+}
+
+/* Secondary line under host/tunnel/snippet rows */
+.host-sub-label {
+	font-family: "JetBrains Mono", "Fira Code", monospace;
+	font-size: 9px;
+	color: #5b6b81;
+}
+
+.tab-row:hover .host-sub-label {
+	color: #7f90a7;
+}
+
+/* Command preview boxes */
+.cmd-preview-row {
+	background: rgba(0, 0, 0, 0.35);
+	border: 1px solid __ACCENT_BORDER_DIM__;
+	border-radius: 10px;
+	padding: 10px 12px;
+	margin-top: 6px;
+}
+
+.cmd-preview-label {
+	font-family: "JetBrains Mono", "Fira Code", "Hack", monospace;
+	font-size: 11px;
+	color: __ACCENT_COLOR__;
+}
+
+.vault-error-label {
+	color: #f87171;
+	font-size: 11px;
+}
+
+.snippet-editor {
+	background: rgba(0, 0, 0, 0.25);
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 10px;
+	color: #f1f5f9;
+	padding: 8px;
+	font-family: "JetBrains Mono", "Fira Code", monospace;
+	font-size: 12px;
+}
+
+.snippet-editor text {
+	background: transparent;
+	color: #f1f5f9;
+}
+
+/* Command log cards */
+.cmdlog-card {
+	background: rgba(15, 23, 32, 0.7);
+	border: 1px solid rgba(255, 255, 255, 0.06);
+	border-radius: 10px;
+	padding: 8px 10px;
+}
+
+.cmdlog-meta {
+	font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+	font-size: 10px;
+	font-weight: 700;
+	color: #7f90a7;
+	letter-spacing: 0.4px;
+}
+
+/* ─── Quick Connect palette ─── */
+window.palette-dialog {
+	background-image:
+		radial-gradient(circle at top, __ACCENT_BG_ACTIVE__, transparent 40%),
+		linear-gradient(180deg, #0d1117 0%, #0a0d12 100%);
+	color: #f1f5f9;
+}
+
+.palette-box {
+	padding: 16px;
+}
+
+.palette-search {
+	background: rgba(255, 255, 255, 0.05);
+	border: 1px solid __ACCENT_BORDER_DIM__;
+	border-radius: 12px;
+	color: #f1f5f9;
+	padding: 12px 14px;
+	font-size: 14px;
+	margin-bottom: 10px;
+}
+
+.palette-search:focus {
+	border-color: __ACCENT_COLOR__;
+	box-shadow: 0 0 0 3px __ACCENT_SHADOW_GLOW__;
+}
+
+.palette-item {
+	background: transparent;
+	border: 1px solid transparent;
+	border-radius: 10px;
+	padding: 8px 10px;
+	transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.palette-item:hover {
+	background: rgba(255, 255, 255, 0.03);
+}
+
+.palette-item.active {
+	background: __ACCENT_BG_ACTIVE__;
+	border-color: __ACCENT_BORDER_DIM__;
+}
+
+.palette-badge {
+	font-family: "JetBrains Mono", monospace;
+	font-size: 9px;
+	font-weight: 800;
+	color: #0a0d12;
+	background: #64748b;
+	border-radius: 5px;
+	padding: 2px 5px;
+	margin-top: 2px;
+}
+
+.palette-badge.badge-host { background: __ACCENT_COLOR__; }
+.palette-badge.badge-tunnel { background: #34d399; color: #08130d; }
+.palette-badge.badge-snippet { background: #fbbf24; color: #1a1405; }
+.palette-badge.badge-action { background: #94a3b8; }
+
+.palette-title {
+	font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+	font-size: 13px;
+	font-weight: 600;
+	color: #e2e8f0;
+}
+
+.palette-subtitle {
+	font-family: "JetBrains Mono", "Fira Code", monospace;
+	font-size: 10px;
+	color: #64748b;
+}
 `
