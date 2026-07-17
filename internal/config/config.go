@@ -12,6 +12,7 @@ type TabConfig struct {
 	Name       string `json:"name"`
 	CustomName bool   `json:"custom_name"`
 	Pinned     bool   `json:"pinned"`
+	ProfileID  string `json:"profile_id,omitempty"` // SSH profile this tab reconnects to
 }
 
 type GroupConfig struct {
@@ -32,6 +33,9 @@ type KeybindingsConfig struct {
 	CloseTab      string `json:"close_tab"`
 	NextTab       string `json:"next_tab"`
 	PrevTab       string `json:"prev_tab"`
+	QuickConnect  string `json:"quick_connect"`
+	CommandLog    string `json:"command_log"`
+	LockVault     string `json:"lock_vault"`
 }
 
 type Config struct {
@@ -55,6 +59,8 @@ type Config struct {
 	TermBackground      string            `json:"term_background"`       // Hex, default: #121212
 	TermForeground      string            `json:"term_foreground"`       // Hex, default: #e0e0e0
 	TermPalette         []string          `json:"term_palette"`          // 16 ANSI colors
+	CopyOnSelect        bool              `json:"copy_on_select"`        // auto-copy selection to clipboard
+	VaultAutoLockMin    int               `json:"vault_auto_lock_min"`   // 0 = never
 	Keybindings         KeybindingsConfig `json:"keybindings"`
 }
 
@@ -70,6 +76,9 @@ func DefaultKeybindings() KeybindingsConfig {
 		CloseTab:      "ctrl+shift+w",
 		NextTab:       "ctrl+Page_Down",
 		PrevTab:       "ctrl+Page_Up",
+		QuickConnect:  "ctrl+shift+k",
+		CommandLog:    "ctrl+shift+l",
+		LockVault:     "ctrl+shift+x",
 	}
 }
 
@@ -112,7 +121,9 @@ func DefaultConfig() *Config {
 			"#424242", "#ef5350", "#66bb6a", "#fff59d",
 			"#42a5f5", "#ab47bc", "#26c6da", "#ffffff",
 		},
-		Keybindings: DefaultKeybindings(),
+		CopyOnSelect:     true,
+		VaultAutoLockMin: 10,
+		Keybindings:      DefaultKeybindings(),
 	}
 }
 
@@ -243,6 +254,22 @@ func LoadConfig() *Config {
 	if cfg.Keybindings.PrevTab == "" {
 		cfg.Keybindings.PrevTab = "ctrl+Page_Up"
 		needsKbdSave = true
+	}
+	if cfg.Keybindings.QuickConnect == "" {
+		cfg.Keybindings.QuickConnect = "ctrl+shift+k"
+		needsKbdSave = true
+	}
+	if cfg.Keybindings.CommandLog == "" {
+		cfg.Keybindings.CommandLog = "ctrl+shift+l"
+		needsKbdSave = true
+	}
+	if cfg.Keybindings.LockVault == "" {
+		cfg.Keybindings.LockVault = "ctrl+shift+x"
+		needsKbdSave = true
+	}
+	if cfg.VaultAutoLockMin < 0 {
+		cfg.VaultAutoLockMin = 10
+		needsSave = true
 	}
 	if needsKbdSave {
 		needsSave = true
