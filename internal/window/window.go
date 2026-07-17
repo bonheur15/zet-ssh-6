@@ -35,6 +35,10 @@ type TerminalWindow struct {
 	renamingTabID      string // empty if not renaming
 	sidebarTimeoutID   glib.SourceHandle
 	titleUpdateID      glib.SourceHandle
+
+	// SSH manager UI
+	sidebarSection string // "tabs" | "hosts" | "tunnels" | "snippets"
+	SectionBar     *gtk.Box
 }
 
 var (
@@ -285,6 +289,30 @@ func (tw *TerminalWindow) setupUI(initialActiveTabID, initialActiveTabDir string
 	})
 	header.PackEnd(btnSettings)
 
+	// Quick Connect button
+	btnConnect := gtk.NewButton()
+	btnConnect.AddCSSClass("header-btn")
+	btnConnect.SetTooltipText("Quick Connect (" + tw.Cfg.Keybindings.QuickConnect + ")")
+	imgConnect := gtk.NewImageFromIconName("network-server-symbolic")
+	imgConnect.SetPixelSize(14)
+	btnConnect.SetChild(imgConnect)
+	btnConnect.ConnectClicked(func() {
+		tw.openQuickConnect()
+	})
+	header.PackStart(btnConnect)
+
+	// Command Log button
+	btnLog := gtk.NewButton()
+	btnLog.AddCSSClass("header-btn")
+	btnLog.SetTooltipText("Command Log (" + tw.Cfg.Keybindings.CommandLog + ")")
+	imgLog := gtk.NewImageFromIconName("text-x-generic-symbolic")
+	imgLog.SetPixelSize(14)
+	btnLog.SetChild(imgLog)
+	btnLog.ConnectClicked(func() {
+		tw.openCommandLog()
+	})
+	header.PackEnd(btnLog)
+
 	// Stack for Switchable VTE widgets
 	tw.Stack = gtk.NewStack()
 	tw.Stack.SetTransitionType(gtk.StackTransitionTypeNone)
@@ -404,12 +432,14 @@ func (tw *TerminalWindow) setupShortcuts() {
 			return true
 		}
 
-		// Copy
+		// Copy — only consume the key when a selection exists so the
+		// combination still reaches TUI apps that bind it themselves.
 		if MatchShortcut(keyval, state, tw.Cfg.Keybindings.Copy) {
-			if activeTab, ok := tw.TabInstances[tw.ActiveTabID]; ok {
+			if activeTab, ok := tw.TabInstances[tw.ActiveTabID]; ok && activeTab.TermInst.HasSelection() {
 				activeTab.TermInst.Copy()
+				return true
 			}
-			return true
+			return false
 		}
 
 		// Paste
@@ -453,6 +483,24 @@ func (tw *TerminalWindow) setupShortcuts() {
 			for _, tab := range tw.TabInstances {
 				tw.applyConfigToInstance(tab.TermInst)
 			}
+			return true
+		}
+
+		// Quick Connect palette
+		if MatchShortcut(keyval, state, tw.Cfg.Keybindings.QuickConnect) {
+			tw.openQuickConnect()
+			return true
+		}
+
+		// Command Log
+		if MatchShortcut(keyval, state, tw.Cfg.Keybindings.CommandLog) {
+			tw.openCommandLog()
+			return true
+		}
+
+		// Lock Vault
+		if MatchShortcut(keyval, state, tw.Cfg.Keybindings.LockVault) {
+			tw.LockVaultNow()
 			return true
 		}
 

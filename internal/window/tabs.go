@@ -12,6 +12,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 
 	"zet-terminal/internal/config"
+	"zet-terminal/internal/sshmgr"
 	"zet-terminal/internal/terminal"
 	"zet-terminal/internal/theme"
 )
@@ -30,6 +31,22 @@ func (tw *TerminalWindow) applyConfigToInstance(inst *terminal.VteTerminalInstan
 }
 
 func (tw *TerminalWindow) CreateTab(id, name, groupID, workingDir string, saveToConfig bool) *TabInstance {
+	// Tabs bound to an SSH profile reconnect instead of opening a shell.
+	var argv []string
+	if profID := tw.profileIDForTab(id); profID != "" {
+		if p := profileStore().Get(profID); p != nil {
+			argv = p.SSHArgv()
+		}
+	}
+	tab := tw.createTabCore(id, name, groupID, workingDir, argv)
+	if saveToConfig {
+		tw.saveTabsToConfig()
+		tw.renderWorkspace()
+	}
+	return tab
+}
+
+func (tw *TerminalWindow) createTabCore(id, name, groupID, workingDir string, argv []string) *TabInstance {
 	inst := terminal.NewVteTerminal()
 	inst.Widget.AddCSSClass("vte-terminal-widget")
 	inst.Widget.SetHExpand(true)
@@ -52,8 +69,12 @@ func (tw *TerminalWindow) CreateTab(id, name, groupID, workingDir string, saveTo
 	// Add widget to the Stack
 	tw.Stack.AddChild(inst.Widget)
 
-	// Spawn shell in directory
-	inst.SpawnShell(tw.Cfg.Shell, workingDir)
+	// Spawn shell or the bound command (e.g. generated ssh invocation)
+	if len(argv) > 0 {
+		inst.SpawnCommand(argv, workingDir)
+	} else {
+		inst.SpawnShell(tw.Cfg.Shell, workingDir)
+	}
 
 	// Signal Handlers
 	inst.OnChildExited(func(status int) {
@@ -78,13 +99,16 @@ func (tw *TerminalWindow) CreateTab(id, name, groupID, workingDir string, saveTo
 		tw.renderWorkspace()
 	})
 
+	// Auto-copy selections so copying works even inside mouse-grabbing
+	// TUI apps (select with Shift+drag there, and it's on the clipboard).
+	inst.OnSelectionChanged(func() {
+		if tw.Cfg.CopyOnSelect && inst.HasSelection() {
+			inst.Copy()
+		}
+	})
+
 	// Setup context menu popovers (Copy & Paste, no emojis)
 	tw.setupContextMenuForTab(tab)
-
-	if saveToConfig {
-		tw.saveTabsToConfig()
-		tw.renderWorkspace()
-	}
 
 	return tab
 }
@@ -232,33 +256,57 @@ func (tw *TerminalWindow) setupContextMenuForTab(tab *TabInstance) {
 	})
 	box.Append(btnPaste)
 
+	// Save the selected ssh command as a profile (shown only when the
+	// selection parses as an ssh invocation).
+	btnSaveProfile := gtk.NewButton()
+	btnSaveProfile.AddCSSClass("menu-item-btn")
+	lblSaveProfile := gtk.NewLabel("Save as SSH Profile")
+	lblSaveProfile.AddCSSClass("menu-item-label")
+	lblSaveProfile.SetHAlign(gtk.AlignStart)
+	btnSaveProfile.SetChild(lblSaveProfile)
+	btnSaveProfile.ConnectClicked(func() {
+		sel := tab.TermInst.GetSelectedText()
+		popover.Popdown()
+		tw.offerSaveAsProfile(sel)
+	})
+	box.Append(btnSaveProfile)
+
+	// Quick Connect palette entry.
+	btnQuick := gtk.NewButton()
+	btnQuick.AddCSSClass("menu-item-btn")
+	lblQuick := gtk.NewLabel("Quick Connect…")
+	lblQuick.AddCSSClass("menu-item-label")
+	lblQuick.SetHAlign(gtk.AlignStart)
+	btnQuick.SetChild(lblQuick)
+	btnQuick.ConnectClicked(func() {
+		popover.Popdown()
+		tw.openQuickConnect()
+	})
+	box.Append(btnQuick)
+
 	popover.SetChild(box)
 
+	// Right-click only: left clicks must reach TUI apps (vim, opencode,
+	// htop) untouched, and copy-on-select already covers quick copying.
 	clickGesture := gtk.NewGestureClick()
-	clickGesture.SetButton(0)
+	clickGesture.SetButton(3)
 	clickGesture.ConnectReleased(func(nPress int, x float64, y float64) {
-		button := clickGesture.CurrentButton()
 		hasSel := tab.TermInst.HasSelection()
+		btnCopy.SetVisible(hasSel)
+		btnPaste.SetVisible(true)
 
-		if button == 3 { // Right click
-			btnCopy.SetVisible(hasSel)
-			btnPaste.SetVisible(!hasSel)
-
-			rect := gdk.NewRectangle(int(x), int(y), 1, 1)
-			popover.SetPointingTo(&rect)
-			popover.Popup()
-		} else if button == 1 { // Left click
-			if hasSel {
-				btnCopy.SetVisible(true)
-				btnPaste.SetVisible(false)
-
-				rect := gdk.NewRectangle(int(x), int(y), 1, 1)
-				popover.SetPointingTo(&rect)
-				popover.Popup()
-			} else {
-				popover.Popdown()
+		// Offer "Save as Profile" only when the selection looks like ssh.
+		canSave := false
+		if hasSel {
+			if _, ok := sshmgr.ParseSSHCommand(tab.TermInst.GetSelectedText()); ok {
+				canSave = true
 			}
 		}
+		btnSaveProfile.SetVisible(canSave)
+
+		rect := gdk.NewRectangle(int(x), int(y), 1, 1)
+		popover.SetPointingTo(&rect)
+		popover.Popup()
 	})
 	tab.TermInst.Widget.AddController(clickGesture)
 }
@@ -699,6 +747,12 @@ func (tw *TerminalWindow) RestoreBackgroundTab(tab *TabInstance, groupID string)
 	tab.TermInst.OnChildExited(func(status int) {
 		tab.TermInst.Destroy()
 		tw.CloseTab(tab.ID)
+	})
+
+	tab.TermInst.OnSelectionChanged(func() {
+		if tw.Cfg.CopyOnSelect && tab.TermInst.HasSelection() {
+			tab.TermInst.Copy()
+		}
 	})
 
 	tab.TermInst.OnWindowTitleChanged(func(title string) {
