@@ -9,6 +9,7 @@ package terminal
 extern void goOnChildExited(void *termPtr, int status);
 extern void goOnWindowTitleChanged(void *termPtr, char *title);
 extern void goOnShellSpawned(void *termPtr, int pid);
+extern void goOnSelectionChanged(void *termPtr);
 
 static void goOnShellSpawned_wrapper(VteTerminal *terminal, GPid pid, GError *error, gpointer user_data) {
 	if (error == NULL && pid > 0) {
@@ -25,14 +26,27 @@ static void c_window_title_changed_cb(VteTerminal *terminal, gpointer user_data)
 	goOnWindowTitleChanged(terminal, (char*)(title ? title : ""));
 }
 
+static void c_selection_changed_cb(VteTerminal *terminal, gpointer user_data) {
+	goOnSelectionChanged(terminal);
+}
+
 static void connect_vte_signals(VteTerminal *terminal) {
 	g_signal_connect(terminal, "child-exited", G_CALLBACK(c_child_exited_cb), NULL);
 	g_signal_connect(terminal, "window-title-changed", G_CALLBACK(c_window_title_changed_cb), NULL);
+	g_signal_connect(terminal, "selection-changed", G_CALLBACK(c_selection_changed_cb), NULL);
 }
 
-static void spawn_shell(VteTerminal *term, const char *shell_path, const char *working_dir) {
-	char *argv[] = {(char*)shell_path, NULL};
+// Reads the visible terminal text (plain text, no attributes).
+static char* get_terminal_text(VteTerminal *terminal) {
+	return vte_terminal_get_text_format(terminal, VTE_FORMAT_TEXT);
+}
 
+// Reads the currently selected text (plain text).
+static char* get_selected_text(VteTerminal *terminal) {
+	return vte_terminal_get_text_selected(terminal, VTE_FORMAT_TEXT);
+}
+
+static void spawn_argv(VteTerminal *term, char **argv, const char *working_dir) {
 	// Build environment: copy parent env and inject VTE_VERSION
 	extern char **environ;
 	int env_count = 0;
@@ -84,6 +98,11 @@ static void spawn_shell(VteTerminal *term, const char *shell_path, const char *w
 		g_free(child_env[i]);
 	}
 	g_free(child_env);
+}
+
+static void spawn_shell(VteTerminal *term, const char *shell_path, const char *working_dir) {
+	char *argv[] = {(char*)shell_path, NULL};
+	spawn_argv(term, argv, working_dir);
 }
 
 static void set_terminal_colors(VteTerminal *terminal, const char *fg_hex, const char *bg_hex, char **palette_hex, int palette_size) {
@@ -180,6 +199,7 @@ type VteTerminalInstance struct {
 	Widget               *gtk.Widget
 	onChildExited        func(status int)
 	onWindowTitleChanged func(title string)
+	onSelectionChanged   func()
 	childPID             int
 }
 
@@ -196,6 +216,14 @@ func goOnWindowTitleChanged(termPtr unsafe.Pointer, title *C.char) {
 	ptr := uintptr(termPtr)
 	if inst, exists := activeTerminals[ptr]; exists && inst.onWindowTitleChanged != nil {
 		inst.onWindowTitleChanged(C.GoString(title))
+	}
+}
+
+//export goOnSelectionChanged
+func goOnSelectionChanged(termPtr unsafe.Pointer) {
+	ptr := uintptr(termPtr)
+	if inst, exists := activeTerminals[ptr]; exists && inst.onSelectionChanged != nil {
+		inst.onSelectionChanged()
 	}
 }
 
@@ -240,6 +268,34 @@ func (t *VteTerminalInstance) SpawnShell(shellPath, workingDir string) {
 	}
 	
 	C.spawn_shell(termPtr, cShell, cDir)
+}
+
+// SpawnCommand runs an arbitrary argv (e.g. a generated ssh command)
+// inside the terminal instead of a shell.
+func (t *VteTerminalInstance) SpawnCommand(argv []string, workingDir string) {
+	if len(argv) == 0 {
+		return
+	}
+	termPtr := (*C.VteTerminal)(unsafe.Pointer(t.Widget.Object.Native()))
+
+	cArgv := make([]*C.char, len(argv)+1)
+	for i, a := range argv {
+		cArgv[i] = C.CString(a)
+	}
+	cArgv[len(argv)] = nil
+	defer func() {
+		for _, p := range cArgv[:len(argv)] {
+			C.free(unsafe.Pointer(p))
+		}
+	}()
+
+	var cDir *C.char
+	if workingDir != "" {
+		cDir = C.CString(workingDir)
+		defer C.free(unsafe.Pointer(cDir))
+	}
+
+	C.spawn_argv(termPtr, &cArgv[0], cDir)
 }
 
 func (t *VteTerminalInstance) SetFont(fontName string, fontSize int) {
@@ -304,6 +360,32 @@ func (t *VteTerminalInstance) OnChildExited(fn func(status int)) {
 
 func (t *VteTerminalInstance) OnWindowTitleChanged(fn func(title string)) {
 	t.onWindowTitleChanged = fn
+}
+
+func (t *VteTerminalInstance) OnSelectionChanged(fn func()) {
+	t.onSelectionChanged = fn
+}
+
+// GetText returns the terminal's visible text content.
+func (t *VteTerminalInstance) GetText() string {
+	termPtr := (*C.VteTerminal)(unsafe.Pointer(t.Widget.Object.Native()))
+	cText := C.get_terminal_text(termPtr)
+	if cText == nil {
+		return ""
+	}
+	defer C.free(unsafe.Pointer(cText))
+	return C.GoString(cText)
+}
+
+// GetSelectedText returns the currently selected text, or "".
+func (t *VteTerminalInstance) GetSelectedText() string {
+	termPtr := (*C.VteTerminal)(unsafe.Pointer(t.Widget.Object.Native()))
+	cText := C.get_selected_text(termPtr)
+	if cText == nil {
+		return ""
+	}
+	defer C.free(unsafe.Pointer(cText))
+	return C.GoString(cText)
 }
 
 func (t *VteTerminalInstance) FeedChild(text string) {
