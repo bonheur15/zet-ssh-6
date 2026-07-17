@@ -35,12 +35,16 @@ func (tw *TerminalWindow) setupSideDock() {
 	panelContent.SetVExpand(true)
 	panelOverlay.SetChild(panelContent)
 
-	// Workspace Header
-	wsHeader := gtk.NewLabel("Workspace")
-	wsHeader.AddCSSClass("workspace-header")
-	wsHeader.SetHAlign(gtk.AlignStart)
-	wsHeader.SetMarginStart(4)
-	panelContent.Append(wsHeader)
+	// Section switcher (Tabs / Hosts / Tunnels / Snippets)
+	if tw.sidebarSection == "" {
+		tw.sidebarSection = "tabs"
+	}
+	tw.SectionBar = gtk.NewBox(gtk.OrientationHorizontal, 4)
+	tw.SectionBar.AddCSSClass("section-bar")
+	tw.SectionBar.SetHAlign(gtk.AlignFill)
+	tw.SectionBar.SetMarginBottom(8)
+	panelContent.Append(tw.SectionBar)
+	tw.renderSectionBar()
 
 	// Scrolled window for workspace explorer
 	scrolled := gtk.NewScrolledWindow()
@@ -185,11 +189,58 @@ func (tw *TerminalWindow) setupHistorySection(parent *gtk.Overlay) {
 	})
 }
 
+// renderSectionBar draws the four sidebar section toggle buttons.
+func (tw *TerminalWindow) renderSectionBar() {
+	if tw.SectionBar == nil {
+		return
+	}
+	for child := tw.SectionBar.FirstChild(); child != nil; child = tw.SectionBar.FirstChild() {
+		tw.SectionBar.Remove(child)
+	}
+	sections := []struct{ id, icon, tip string }{
+		{"tabs", "view-grid-symbolic", "Workspace tabs"},
+		{"hosts", "network-server-symbolic", "SSH hosts"},
+		{"tunnels", "network-transmit-receive-symbolic", "Tunnels"},
+		{"snippets", "utilities-terminal-symbolic", "Command library"},
+	}
+	for _, s := range sections {
+		sec := s
+		btn := gtk.NewButton()
+		btn.AddCSSClass("section-btn")
+		if tw.sidebarSection == sec.id {
+			btn.AddCSSClass("active")
+		}
+		btn.SetHExpand(true)
+		btn.SetTooltipText(sec.tip)
+		btn.SetChild(gtk.NewImageFromIconName(sec.icon))
+		btn.ConnectClicked(func() {
+			tw.sidebarSection = sec.id
+			tw.renderSectionBar()
+			tw.renderWorkspace()
+		})
+		tw.SectionBar.Append(btn)
+	}
+}
+
 func (tw *TerminalWindow) renderWorkspace() {
+	tw.renderSectionBar()
 	for child := tw.WorkspaceBox.FirstChild(); child != nil; child = tw.WorkspaceBox.FirstChild() {
 		tw.WorkspaceBox.Remove(child)
 	}
 
+	switch tw.sidebarSection {
+	case "hosts":
+		tw.renderHostsSection()
+		return
+	case "tunnels":
+		tw.renderTunnelsSection()
+		return
+	case "snippets":
+		tw.renderSnippetsSection()
+		return
+	}
+
+	// Default: tabs / workspace section.
 	// Create Group Button or Inline Entry
 	if tw.isCreatingGroup {
 		createRow := gtk.NewBox(gtk.OrientationHorizontal, 4)

@@ -9,7 +9,19 @@ import (
 
 	"zet-terminal/internal/config"
 	"zet-terminal/internal/theme"
+	"zet-terminal/internal/vault"
 )
+
+func vaultStatusText() string {
+	v := appVault()
+	if !v.Exists() {
+		return "Vault not created yet."
+	}
+	if v.IsUnlocked() {
+		return "Vault is unlocked."
+	}
+	return "Vault is locked."
+}
 
 var uiAccents = []string{"cyan", "purple", "emerald", "amber", "crimson", "steel", "custom"}
 
@@ -272,6 +284,52 @@ func (tw *TerminalWindow) openSettingsDialog() {
 	rowSidebarPinned, switchSidebarPinned := createSwitchField("Keep sidebar pinned by default", "New windows open with the workspace sidebar already visible.", tw.Cfg.SidebarPinned)
 	generalContent.Append(rowSidebarPinned)
 
+	rowCopyOnSelect, switchCopyOnSelect := createSwitchField("Copy on select", "Automatically copy selected text to the clipboard. Keeps copy working inside mouse-grabbing TUI apps like opencode or vim.", tw.Cfg.CopyOnSelect)
+	generalContent.Append(rowCopyOnSelect)
+
+	// --- SECTION: SSH & VAULT ---
+	sshCard, sshContent := createSettingsCard("SSH & Vault", "Control the encrypted secret store used by SSH profiles and snippets.")
+	contentBox.Append(sshCard)
+
+	rowAutoLock := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	rowAutoLock.AddCSSClass("settings-row")
+	lblAutoLock := gtk.NewLabel("Vault Auto-Lock (minutes, 0 = never):")
+	lblAutoLock.AddCSSClass("settings-label")
+	lblAutoLock.SetHAlign(gtk.AlignStart)
+	lblAutoLock.SetHExpand(true)
+	adjAutoLock := gtk.NewAdjustment(float64(tw.Cfg.VaultAutoLockMin), 0, 240, 1, 5, 0)
+	spinAutoLock := gtk.NewSpinButton(adjAutoLock, 1, 0)
+	spinAutoLock.AddCSSClass("settings-entry")
+	rowAutoLock.Append(lblAutoLock)
+	rowAutoLock.Append(spinAutoLock)
+	sshContent.Append(rowAutoLock)
+
+	vaultBtnRow := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	vaultBtnRow.AddCSSClass("settings-row")
+	lblVaultState := gtk.NewLabel(vaultStatusText())
+	lblVaultState.AddCSSClass("settings-hint")
+	lblVaultState.SetHAlign(gtk.AlignStart)
+	lblVaultState.SetHExpand(true)
+	vaultBtnRow.Append(lblVaultState)
+
+	btnLockVault := gtk.NewButtonWithLabel("Lock Now")
+	btnLockVault.AddCSSClass("sidebar-btn")
+	btnLockVault.ConnectClicked(func() {
+		appVault().Lock()
+		lblVaultState.SetLabel(vaultStatusText())
+	})
+	vaultBtnRow.Append(btnLockVault)
+
+	btnUnlockVault := gtk.NewButtonWithLabel("Unlock / Create")
+	btnUnlockVault.AddCSSClass("sidebar-btn")
+	btnUnlockVault.ConnectClicked(func() {
+		tw.WithVault(func(v *vault.Vault) {
+			lblVaultState.SetLabel(vaultStatusText())
+		})
+	})
+	vaultBtnRow.Append(btnUnlockVault)
+	sshContent.Append(vaultBtnRow)
+
 	// --- SECTION: APPEARANCE ---
 	appearanceCard, appearanceContent := createSettingsCard("Appearance", "Set typography, cursor behavior, and the overall application accent.")
 	contentBox.Append(appearanceCard)
@@ -523,6 +581,15 @@ func (tw *TerminalWindow) openSettingsDialog() {
 	rowZoomOut, entryZoomOut := createKeybindingField("Zoom Out:", tw.Cfg.Keybindings.ZoomOut)
 	keyboardContent.Append(rowZoomOut)
 
+	rowQuickConnect, entryQuickConnect := createKeybindingField("Quick Connect:", tw.Cfg.Keybindings.QuickConnect)
+	keyboardContent.Append(rowQuickConnect)
+
+	rowCommandLog, entryCommandLog := createKeybindingField("Command Log:", tw.Cfg.Keybindings.CommandLog)
+	keyboardContent.Append(rowCommandLog)
+
+	rowLockVault, entryLockVault := createKeybindingField("Lock Vault:", tw.Cfg.Keybindings.LockVault)
+	keyboardContent.Append(rowLockVault)
+
 	// --- BOTTOM BUTTONS: SAVE & CANCEL ---
 	btnBox := gtk.NewBox(gtk.OrientationHorizontal, 12)
 	btnBox.SetHAlign(gtk.AlignEnd)
@@ -549,6 +616,8 @@ func (tw *TerminalWindow) openSettingsDialog() {
 		tw.Cfg.WindowWidth = int(spinWindowWidth.Value())
 		tw.Cfg.WindowHeight = int(spinWindowHeight.Value())
 		tw.Cfg.SidebarPinned = switchSidebarPinned.Active()
+		tw.Cfg.CopyOnSelect = switchCopyOnSelect.Active()
+		tw.Cfg.VaultAutoLockMin = int(spinAutoLock.Value())
 		tw.Cfg.FontName = strings.TrimSpace(entryFontName.Text())
 		tw.Cfg.FontSize = int(spinFontSize.Value())
 
@@ -563,6 +632,9 @@ func (tw *TerminalWindow) openSettingsDialog() {
 		tw.Cfg.Keybindings.ToggleSidebar = strings.TrimSpace(entryToggleSidebar.Text())
 		tw.Cfg.Keybindings.ZoomIn = strings.TrimSpace(entryZoomIn.Text())
 		tw.Cfg.Keybindings.ZoomOut = strings.TrimSpace(entryZoomOut.Text())
+		tw.Cfg.Keybindings.QuickConnect = strings.TrimSpace(entryQuickConnect.Text())
+		tw.Cfg.Keybindings.CommandLog = strings.TrimSpace(entryCommandLog.Text())
+		tw.Cfg.Keybindings.LockVault = strings.TrimSpace(entryLockVault.Text())
 
 		shapeIdx := comboCursorShape.Active()
 		if shapeIdx >= 0 {
