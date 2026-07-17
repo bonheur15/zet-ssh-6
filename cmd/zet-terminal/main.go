@@ -15,6 +15,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"zet-terminal/internal/config"
+	"zet-terminal/internal/sshmgr"
 	"zet-terminal/internal/window"
 )
 
@@ -107,6 +108,11 @@ func main() {
 		// Load Dynamic Theme CSS
 		window.InitGlobalCSS(cfg)
 		isInitialized = true
+	})
+
+	app.ConnectShutdown(func() {
+		// Tear down any background tunnels cleanly.
+		sshmgr.Tunnels(config.GetConfigDir()).StopAll()
 	})
 
 	app.ConnectCommandLine(func(cmdLine *gio.ApplicationCommandLine) int {
